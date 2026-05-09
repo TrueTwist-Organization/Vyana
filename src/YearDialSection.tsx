@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import './year-dial-section.css';
 
 type Chapter = {
@@ -9,6 +10,7 @@ type Chapter = {
   tags: string[];
   quote: string;
   details: [string, string, string];
+  videoUrl: string;
 };
 
 const CHAPTERS: Chapter[] = [
@@ -28,6 +30,7 @@ const CHAPTERS: Chapter[] = [
       'Careful shortlisting over volume-driven sales',
       'Transparent pricing as core brand promise',
     ],
+    videoUrl: '/video for vyana/residantial/download.mp4',
   },
   {
     year: 2017,
@@ -45,6 +48,7 @@ const CHAPTERS: Chapter[] = [
       'Repeat client rate exceeded industry average by 3x',
       'Introduced honest pricing benchmark reports',
     ],
+    videoUrl: '/video for vyana/residantial/download (2).mp4',
   },
   {
     year: 2019,
@@ -62,6 +66,7 @@ const CHAPTERS: Chapter[] = [
       'First investment-grade property mandate closed',
       'Documentation-first approach adopted companywide',
     ],
+    videoUrl: '/video for vyana/comracial/c1.mp4',
   },
   {
     year: 2021,
@@ -79,6 +84,7 @@ const CHAPTERS: Chapter[] = [
       'CRM-based lead management introduced',
       'Virtual site tours enabled remote buyers',
     ],
+    videoUrl: '/video for vyana/comracial/c10.mp4',
   },
   {
     year: 2024,
@@ -96,6 +102,7 @@ const CHAPTERS: Chapter[] = [
       'Average transaction value up 4x since founding',
       'City-wide mandates across residential and commercial',
     ],
+    videoUrl: '/video for vyana/industrial/Vyana Reality (1).mp4',
   },
 ];
 
@@ -105,7 +112,6 @@ const PROGRESS_PERCENTS = [20, 40, 60, 80, 100] as const;
 
 export function YearDialSection() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isSwitching, setIsSwitching] = useState(false);
   const dialRef = useRef<HTMLDivElement>(null);
   const pillRef = useRef<HTMLSpanElement>(null);
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -133,11 +139,7 @@ export function YearDialSection() {
 
   const setIndex = (i: number) => {
     if (i === activeIndex || i < 0 || i >= CHAPTERS.length) return;
-    setIsSwitching(true);
-    window.setTimeout(() => {
-      setActiveIndex(i);
-      setIsSwitching(false);
-    }, 220);
+    setActiveIndex(i);
   };
 
   const ch = CHAPTERS[activeIndex];
@@ -197,40 +199,113 @@ export function YearDialSection() {
             </div>
           </div>
 
-          <div className={`yd-content${isSwitching ? ' is-switching' : ''}`} aria-live="polite">
-            <div className="yd-col-left">
-              <p className="yd-chapter-meta">
-                Chapter {String(n).padStart(2, '0')} of 05
-              </p>
-              <h3 className={`yd-phase-title${ch.eliteTitle ? ' is-elite' : ''}`}>{ch.phaseTitle}</h3>
-              <div className="yd-stats">
-                <div>
-                  <div className="yd-stat-num">{ch.stats[0].num}</div>
-                  <div className="yd-stat-label">{ch.stats[0].label}</div>
+          <div className="yd-portal-viewport">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeIndex}
+                className="yd-portal-content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                {/* Large Background Year Outline */}
+                <motion.div
+                  className="yd-bg-year-outline"
+                  initial={{ opacity: 0, scale: 0.8, y: 100 }}
+                  animate={{ opacity: 0.1, scale: 1, y: 0 }}
+                  transition={{ duration: 1.5, ease: "easeOut" }}
+                >
+                  {ch.year}
+                </motion.div>
+
+                <div className="yd-portal-grid">
+                  <div className="yd-portal-left">
+                    <motion.div
+                      className="yd-chapter-tag"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <span className="yd-gold-dot" />
+                      CHAPTER {String(n).padStart(2, '0')}
+                    </motion.div>
+
+                    <div className="yd-portal-title-wrap">
+                      <motion.h3
+                        className={`yd-portal-title${ch.eliteTitle ? ' is-elite-glow' : ''}`}
+                        initial={{ opacity: 0, filter: 'blur(20px)', y: 30 }}
+                        animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+                      >
+                        {ch.phaseTitle}
+                      </motion.h3>
+                    </div>
+
+                    <div className="yd-portal-stats">
+                      {ch.stats.map((stat, idx) => (
+                        <motion.div
+                          key={stat.label}
+                          className="yd-stat-pill"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 + idx * 0.1 }}
+                        >
+                          <span className="yd-stat-val">{stat.num}</span>
+                          <span className="yd-stat-key">{stat.label}</span>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <motion.p
+                      className="yd-portal-quote"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.6 }}
+                    >
+                      {ch.quote}
+                    </motion.p>
+                  </div>
+
+                  <div className="yd-portal-right">
+                    <div className="yd-cinematic-frame">
+                      <div className="yd-frame-corner top-left" />
+                      <div className="yd-frame-corner top-right" />
+                      <div className="yd-frame-corner bottom-left" />
+                      <div className="yd-frame-corner bottom-right" />
+
+                      <motion.video
+                        key={ch.videoUrl}
+                        className="yd-portal-video"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        initial={{ scale: 1.2, filter: 'grayscale(1) brightness(0.5)' }}
+                        animate={{ scale: 1, filter: 'grayscale(0) brightness(1)' }}
+                        transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+                      >
+                        <source src={ch.videoUrl} type="video/mp4" />
+                      </motion.video>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="yd-stat-num">{ch.stats[1].num}</div>
-                  <div className="yd-stat-label">{ch.stats[1].label}</div>
+
+                <div className="yd-portal-tags">
+                  {ch.tags.map((t, idx) => (
+                    <motion.span
+                      key={t}
+                      className="yd-portal-tag"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1 + idx * 0.05 }}
+                    >
+                      {t}
+                    </motion.span>
+                  ))}
                 </div>
-              </div>
-              <div className="yd-tags">
-                {ch.tags.map((t) => (
-                  <span key={t} className="yd-tag">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="yd-divider" aria-hidden="true" />
-            <div className="yd-col-right">
-              <div className="yd-ghost-year">{ch.year}</div>
-              <blockquote className="yd-quote">{ch.quote}</blockquote>
-              <ul className="yd-details">
-                {ch.details.map((d) => (
-                  <li key={d}>{d}</li>
-                ))}
-              </ul>
-            </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>

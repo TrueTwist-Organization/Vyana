@@ -8,19 +8,22 @@
   position: relative;
   z-index: 4;
   isolation: isolate;
-  background: #050505;
-  padding: clamp(2.5rem, 6vw, 4rem) 1rem clamp(3rem, 7vw, 4.25rem);
+  background: transparent;
+  padding: 0;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
   .sd-section {
-    padding-left: clamp(1rem, 4vw, 2rem);
-    padding-right: clamp(1rem, 4vw, 2rem);
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
 .sd-inner {
-  max-width: min(1180px, 100%);
+  width: 100%;
+  max-width: 1600px;
+  padding: 0 4vw;
   margin: 0 auto;
 }
 
@@ -220,7 +223,6 @@
   flex-shrink: 0;
 }
 
-/* Map shell (embed fills frame) */
 .sd-map-frame {
   position: relative;
   border-radius: clamp(16px, 2.5vw, 24px);
@@ -253,7 +255,8 @@
   height: 100%;
   min-height: 260px;
   border: 0;
-  filter: grayscale(0.15) contrast(1.05);
+  filter: grayscale(0.2) contrast(1.1) brightness(0.85) invert(0.05);
+  pointer-events: none; /* Disable interaction to keep markers synced */
 }
 
 @media (min-width: 900px) {
@@ -262,17 +265,101 @@
   }
 }
 
-.sd-map-caption {
-  font-family: 'Outfit', sans-serif;
-  font-size: clamp(0.68rem, 2vw, 0.75rem);
-  color: rgba(196, 142, 42, 0.55);
-  margin: 0.65rem 0 0;
-  text-align: center;
-  line-height: 1.45;
+.sd-map-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
 }
 
-@media (min-width: 900px) {
-  .sd-map-caption {
-    text-align: left;
+.sd-map-marker {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.sd-marker-ping {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  background: var(--sd-gold);
+  border-radius: 50%;
+  opacity: 0.15;
+  animation: sd-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes sd-ping {
+  75%, 100% {
+    transform: translate(-50%, -50%) scale(2.5);
+    opacity: 0;
+  }
+}
+
+.sd-marker-icon-wrap {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  background: #111;
+  border: 1px solid var(--sd-gold);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sd-gold);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.sd-map-marker:hover .sd-marker-icon-wrap {
+  background: var(--sd-gold);
+  color: #000;
+  transform: scale(1.1) translateY(-2px);
+}
+
+.sd-marker-label {
+  margin-top: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(196, 142, 42, 0.2);
+}
+
+.sd-map-caption {
+  margin-top: 1rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(0.7rem, 2vw, 0.85rem);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  max-width: 600px;
+  margin-inline: auto;
+}
+
+/* Adjust map height for mobile to prevent overflow */
+@media (max-width: 767px) {
+  .sd-map-frame--real {
+    max-height: 35vh;
+  }
+  
+  .sd-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    padding-bottom: 2rem;
   }
 }

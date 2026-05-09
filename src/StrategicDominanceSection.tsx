@@ -1,19 +1,12 @@
-import { useId, useState } from 'react';
+import { useId } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import './strategic-dominance.css';
 
-type TabId = 'residential' | 'commercial' | 'plotting';
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'residential', label: 'Residential' },
-  { id: 'commercial', label: 'Commercial' },
-  { id: 'plotting', label: 'Plotting' },
-];
 
-/** Center + zoom: west Ahmedabad (Vaishnodevi · Bopal · Shela · Thaltej · Iscon) */
-const MAP_EMBED_SRC =
-  'https://www.google.com/maps?q=23.045,72.495&z=11&hl=en&output=embed';
+import { Building2 } from 'lucide-react';
 
 /** User order: Vaishnodevi, Bopal, Shela, Thaltej, Iscon */
 const EXCLUSIVE_HUBS: { num: string; name: string }[] = [
@@ -24,17 +17,55 @@ const EXCLUSIVE_HUBS: { num: string; name: string }[] = [
   { num: '05', name: 'Iscon' },
 ];
 
-function TerritoryMap() {
+/** Center + zoom: west Ahmedabad (Vaishnodevi · Bopal · Shela · Thaltej · Iscon) */
+const HUB_COORDINATES: Record<string, { top: string; left: string }> = {
+  Vaishnodevi: { top: '10%', left: '68%' },
+  Bopal: { top: '56%', left: '44%' },
+  Shela: { top: '72%', left: '40%' },
+  Thaltej: { top: '48%', left: '59%' },
+  Iscon: { top: '65%', left: '59%' },
+};
+
+const MAP_EMBED_SRC = 'https://www.google.com/maps?q=23.05,72.48&z=12&hl=en&output=embed&t=m';
+
+function TerritoryMap({ activeHub }: { activeHub?: string }) {
+  const navigate = useNavigate();
+
   return (
     <div className="sd-map-frame sd-map-frame--real">
       <iframe
         className="sd-map-iframe"
-        title="Ahmedabad — Vyana exclusive hubs (Google Maps)"
+        title="Ahmedabad West Corridor"
         src={MAP_EMBED_SRC}
         loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        allowFullScreen
       />
+
+      {/* Overlay Markers */}
+      <div className="sd-map-overlay">
+        {EXCLUSIVE_HUBS.map((h) => {
+          const coords = HUB_COORDINATES[h.name];
+          const isActive = activeHub === h.name;
+
+          return (
+            <motion.div
+              key={h.name}
+              className={`sd-map-marker ${isActive ? 'sd-map-marker--active' : ''}`}
+              style={{ top: coords.top, left: coords.left }}
+              initial={{ scale: 0, opacity: 0 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: 'spring', damping: 15, delay: 0.2 + Number(h.num) * 0.1 }}
+              onClick={() => navigate(`/hub/${h.name.toLowerCase()}`)}
+            >
+              <div className="sd-marker-ping" />
+              <div className="sd-marker-icon-wrap">
+                <Building2 size={16} className="sd-marker-icon" />
+              </div>
+              <span className="sd-marker-label">{h.name.toUpperCase()}</span>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -42,7 +73,7 @@ function TerritoryMap() {
 const headerEase = [0.22, 1, 0.36, 1] as const;
 
 export function StrategicDominanceSection() {
-  const [tab, setTab] = useState<TabId>('residential');
+  const navigate = useNavigate();
   const baseId = useId();
   const reduceMotion = useReducedMotion();
   const tTrans = reduceMotion ? { duration: 0 } : { duration: 0.52, ease: headerEase };
@@ -114,37 +145,13 @@ export function StrategicDominanceSection() {
               Dominance
             </motion.span>
           </motion.h2>
-          <motion.div
-            className="sd-tabs"
-            role="tablist"
-            aria-label="Property categories"
-            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-            whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.9 }}
-            transition={{ ...tTrans, delay: reduceMotion ? 0 : 0.2 }}
-          >
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                id={`${baseId}-tab-${t.id}`}
-                aria-selected={tab === t.id}
-                aria-controls={`${baseId}-panel`}
-                className={`sd-tab${tab === t.id ? ' sd-tab--active' : ''}`}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </motion.div>
         </header>
 
         <div
           className="sd-grid"
           role="tabpanel"
           id={`${baseId}-panel`}
-          aria-labelledby={`${baseId}-tab-${tab}`}
+          aria-labelledby={`${baseId}-heading`}
         >
           <div className="sd-col sd-col--hubs">
             <motion.h3
@@ -164,7 +171,13 @@ export function StrategicDominanceSection() {
               viewport={{ once: true, margin: '-10% 0px' }}
             >
               {EXCLUSIVE_HUBS.map((h) => (
-                <motion.li key={h.num + h.name} className="sd-hub-card" variants={hubItemVariants}>
+                <motion.li
+                  key={h.num + h.name}
+                  className="sd-hub-card"
+                  variants={hubItemVariants}
+                  onClick={() => navigate(`/hub/${h.name.toLowerCase()}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <span className="sd-hub-num">{h.num}</span>
                   <span className="sd-hub-name">{h.name}</span>
                   <ArrowUpRight className="sd-hub-arrow" strokeWidth={1.6} aria-hidden />

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
 import { Routes, Route, Navigate, useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { ChevronRight, MapPin, Menu, ChevronLeft, ChevronDown, Phone, Mail } from 'lucide-react';
-import { HomeReveal, useHomeScrollSnapClass } from './HomeReveal';
+import { HomeReveal } from './HomeReveal';
 import { SiteFooter } from './SiteFooter';
 import { PartnersSection } from './PartnersSection';
 import { WhyChooseUsSection } from './WhyChooseUsSection';
@@ -23,6 +23,7 @@ import {
   residentialClipsByTitle,
   type PropertyClip,
 } from './vyanaVideoData';
+import { WelcomeIntro } from './WelcomeIntro';
 
 // --- DATA ---
 
@@ -67,12 +68,12 @@ const categories: Category[] = [
 /** Shared micro-markets for Residential & Commercial (order: Gota → Vaishnodevi → Shela → Thaltej → Bopal) */
 const LOCATIONS_WEST_MICRO: SubLocation[] = [
   {
-    title: 'Gota',
+    title: 'Iscon',
     price: 'On request',
-    region: 'West district',
-    location: 'Gota · Ahmedabad West',
-    img: '/assets/commercial.png',
-    desc: 'High-growth micro-market with strong residential and retail corridors, wide roads, and access to the ring road.',
+    region: 'South-West corridor',
+    location: 'Iscon · Ahmedabad West',
+    img: '/assets/commercial-cutout.png',
+    desc: 'High-profile commercial and residential nexus with landmark connectivity and luxury hospitality hubs.',
   },
   {
     title: 'Vaishnodevi',
@@ -201,7 +202,7 @@ function eliteBrandHeadline(categoryId: string): string {
   }
 }
 
-type SubCollectionProps = { category: Category; locations: SubLocation[]; onClear: () => void };
+type SubCollectionProps = { category: Category; locations: SubLocation[]; onClear: () => void; initialRevealed?: boolean };
 
 const immersiveBgVariants = {
   enter: (dir: number) => ({
@@ -221,9 +222,29 @@ const immersiveBgVariants = {
   }),
 };
 
-const SubCollection = ({ category, locations, onClear }: SubCollectionProps) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [previewsRevealed, setPreviewsRevealed] = useState(false);
+const SubCollection = ({ category, locations, onClear, initialRevealed = false }: SubCollectionProps) => {
+  const routerLocation = useLocation();
+  const targetLocationName = routerLocation.state?.targetLocation;
+
+  const initialIndex = useMemo(() => {
+    if (targetLocationName) {
+      const idx = locations.findIndex((l) => l.title === targetLocationName || l.location.includes(targetLocationName));
+      if (idx !== -1) return idx;
+    }
+    return 0;
+  }, [targetLocationName, locations]);
+
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
+
+  // Update active index if state changes while component is mounted
+  useEffect(() => {
+    if (targetLocationName) {
+      const idx = locations.findIndex((l) => l.title === targetLocationName || l.location.includes(targetLocationName));
+      if (idx !== -1) setActiveIndex(idx);
+    }
+  }, [targetLocationName, locations]);
+
+  const [previewsRevealed, setPreviewsRevealed] = useState(initialRevealed);
   const [heroInView, setHeroInView] = useState(true);
   const [detailClip, setDetailClip] = useState<PropertyClip | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -233,6 +254,7 @@ const SubCollection = ({ category, locations, onClear }: SubCollectionProps) => 
   const prevHeroInViewRef = useRef(true);
   const blockCardClickRef = useRef(false);
   const advanceDirRef = useRef(1);
+  const autoAdvanceActiveRef = useRef(true); // Track if auto-advance is still enabled
 
   const active = locations[activeIndex];
   const activeClips = active.clips ?? [];
@@ -247,12 +269,15 @@ const SubCollection = ({ category, locations, onClear }: SubCollectionProps) => 
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    // Stop auto-advance if disabled by user interaction, if only 1 location, or if previews are revealed
+    if (!autoAdvanceActiveRef.current || locations.length <= 1 || previewsRevealed) return;
+
     timerRef.current = setInterval(() => {
       advanceDirRef.current = 1;
       setPreviewsRevealed(false);
       setActiveIndex((i) => (i + 1) % locations.length);
     }, AUTO_ADVANCE_MS);
-  }, [locations.length]);
+  }, [locations.length, previewsRevealed]);
 
   const scrollActiveCardIntoView = useCallback(() => {
     const rail = cardsRailRef.current;
@@ -283,13 +308,16 @@ const SubCollection = ({ category, locations, onClear }: SubCollectionProps) => 
   const skipScrollRef = useRef(true);
 
   useEffect(() => {
-    setActiveIndex(0);
+    // Only reset if we're not using initialRevealed or if it's a genuine category change
+    if (!initialRevealed) {
+      setActiveIndex(0);
+      setPreviewsRevealed(false);
+    }
     skipScrollRef.current = true;
     setDetailClip(null);
-    setPreviewsRevealed(false);
     prevHeroInViewRef.current = true;
     setHeroInView(true);
-  }, [category.id]);
+  }, [category.id, initialRevealed]);
 
   useEffect(() => {
     const el = heroImmersiveRef.current;
@@ -336,6 +364,7 @@ const SubCollection = ({ category, locations, onClear }: SubCollectionProps) => 
   }, [activeIndex, scrollActiveCardIntoView, heroInView, previewsRevealed]);
 
   const go = (dir: number) => {
+    autoAdvanceActiveRef.current = false; // Disable auto-advance on manual arrow click
     advanceDirRef.current = dir;
     setDetailClip(null);
     setPreviewsRevealed(false);
@@ -344,6 +373,7 @@ const SubCollection = ({ category, locations, onClear }: SubCollectionProps) => 
   };
 
   const handleLocationCardClick = (i: number) => {
+    autoAdvanceActiveRef.current = false; // Disable auto-advance on manual card click
     setDetailClip(null);
     setPreviewsRevealed(true);
     setActiveIndex((prev) => {
@@ -439,347 +469,424 @@ const SubCollection = ({ category, locations, onClear }: SubCollectionProps) => 
   return (
     <>
       <motion.section
-      ref={heroImmersiveRef}
-      key={category.id}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="elite-immersive"
-    >
-      <div className="elite-immersive-bg" aria-hidden>
-        <AnimatePresence mode="sync" initial={false}>
-          <motion.div
-            key={activeIndex}
-            className="elite-immersive-bg-slide"
-            style={{ zIndex: immersiveBgLayerZ }}
-            custom={advanceDirRef.current}
-            variants={immersiveBgVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              duration: 0.95,
-              ease: [0.25, 0.08, 0.25, 1],
-              opacity: { duration: 1.05, ease: [0.35, 0, 0.25, 1] },
-            }}
-          >
-            <img src={active.img} alt="" className="elite-immersive-bg-img" />
-          </motion.div>
-        </AnimatePresence>
-        <div className="elite-immersive-bg-scrim" />
-      </div>
-
-      <div className="elite-immersive-inner">
-        <div className="elite-immersive-grid">
-          <div className="elite-immersive-copy">
-            <motion.p
-              className="elite-immersive-kicker gold-accent"
-              key={`kicker-${activeIndex}`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.32 }}
-            >
-              {category.title.toUpperCase()}
-            </motion.p>
-            <motion.h2
-              className="elite-immersive-headline font-artful"
-              key={`headline-${activeIndex}`}
-              initial={{ opacity: 0, y: 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.04 }}
-            >
-              {active.title.toUpperCase()}
-            </motion.h2>
+        ref={heroImmersiveRef}
+        key={category.id}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="elite-immersive"
+      >
+        <div className="elite-immersive-bg" aria-hidden>
+          <AnimatePresence mode="sync" initial={false}>
             <motion.div
-              className="elite-immersive-meta"
-              key={`meta-${activeIndex}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.32, delay: 0.1 }}
+              key={activeIndex}
+              className="elite-immersive-bg-slide"
+              style={{ zIndex: immersiveBgLayerZ }}
+              custom={advanceDirRef.current}
+              variants={immersiveBgVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                duration: 0.95,
+                ease: [0.25, 0.08, 0.25, 1],
+                opacity: { duration: 1.05, ease: [0.35, 0, 0.25, 1] },
+              }}
             >
-              <span className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>
-                <MapPin size={14} style={{ color: '#D4AF37', flexShrink: 0 }} />
-                {active.location}
-              </span>
+              <img src={active.img} alt="" className="elite-immersive-bg-img" />
             </motion.div>
-            {activeClips.length > 0 && !previewsRevealed ? (
+          </AnimatePresence>
+          <div className="elite-immersive-bg-scrim" />
+        </div>
+
+        <div className="elite-immersive-inner">
+          <div className="elite-immersive-grid">
+            <div className="elite-immersive-copy">
               <motion.p
-                key={`hint-${activeIndex}`}
-                className="elite-immersive-hint"
-                initial={{ opacity: 0, y: 8 }}
+                className="elite-immersive-kicker gold-accent"
+                key={`kicker-${activeIndex}`}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.18 }}
+                transition={{ duration: 0.32 }}
               >
-                Tap a location card to open cinematic previews below.
+                {category.title.toUpperCase()}
               </motion.p>
-            ) : null}
-          </div>
-
-          <div
-            className="elite-immersive-carousel"
-            onMouseEnter={() => {
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
-                timerRef.current = null;
-              }
-            }}
-            onMouseLeave={() => resetAutoAdvance()}
-          >
-            <div
-              ref={cardsRailRef}
-              className="elite-immersive-cards-rail"
-              role="region"
-              aria-label="Property locations · drag to scroll"
-            >
-            <div className="elite-immersive-cards">
-              {locations.map((item, i) => (
-                <motion.button
-                  key={item.title}
-                  ref={(el) => {
-                    cardBtnRefs.current[i] = el;
-                  }}
-                  type="button"
-                  aria-label={`View ${item.title}`}
-                  aria-current={i === activeIndex ? true : undefined}
-                  className={`elite-mini-card-wrap${i === activeIndex ? ' elite-mini-card-wrap--active' : ''}`}
-                  onClick={() => handleLocationCardClick(i)}
-                  initial={{ opacity: 0, x: 28, scale: 0.94 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{
-                    type: 'spring',
-                    damping: 22,
-                    stiffness: 280,
-                    delay: 0.14 + i * 0.12,
-                  }}
-                  whileHover={{ y: -4 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <div className="elite-mini-card">
-                    <img src={item.img} alt="" className="elite-mini-card-img" />
-                    <div className="elite-mini-card-glass">
-                      <span className="elite-mini-card-region">{item.region}</span>
-                      <span className="elite-mini-card-title">{item.title}</span>
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-            </div>
-            <div className="elite-immersive-carousel-footer">
-              <div className="elite-immersive-arrows">
-                <button type="button" className="elite-immersive-arrow" onClick={() => go(-1)} aria-label="Previous property">
-                  <ChevronLeft size={22} />
-                </button>
-                <button type="button" className="elite-immersive-arrow" onClick={() => go(1)} aria-label="Next property">
-                  <ChevronRight size={22} />
-                </button>
-              </div>
-              <span className="elite-immersive-index font-artful">
-                {String(activeIndex + 1).padStart(2, '0')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="elite-immersive-exit">
-          <button type="button" onClick={onClear} className="elite-immersive-exit-btn">
-            ✕ Exit collection ✕
-          </button>
-        </div>
-      </div>
-    </motion.section>
-
-    <AnimatePresence>
-      {previewsRevealed && activeClips.length > 0 ? (
-        <motion.section
-          key={`previews-${category.id}-${activeIndex}`}
-          id="elite-market-previews"
-          className="elite-previews-below"
-          initial={{ opacity: 0, y: 32 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          aria-label={`Video previews for ${active.title}`}
-        >
-          <div className="elite-previews-below-inner">
-            <p className="elite-clips-strip-kicker">Private previews · {active.title}</p>
-            <p className="elite-previews-below-lead">Tap a film for full building details.</p>
-            <div className="elite-clips-grid">
-              {activeClips.map((clip, ci) => (
-                <motion.button
-                  key={clip.id}
-                  type="button"
-                  className="elite-clip-card"
-                  onClick={() => setDetailClip(clip)}
-                  initial={{ opacity: 0, y: 24, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 260,
-                    damping: 24,
-                    delay: 0.06 + ci * 0.1,
-                  }}
-                  whileHover={{ y: -4, scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <video
-                    className="elite-clip-card-video"
-                    src={clip.videoSrc}
-                    muted
-                    playsInline
-                    loop
-                    autoPlay
-                    aria-hidden
-                  />
-                  <div className="elite-clip-card-shade" aria-hidden />
-                  <div className="elite-clip-card-meta">
-                    <span className="elite-clip-card-eyebrow">{clip.tagline}</span>
-                    <span className="elite-clip-card-name">{clip.name}</span>
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-      ) : null}
-    </AnimatePresence>
-
-    <AnimatePresence>
-          {detailClip ? (
-            <motion.div
-              className="elite-building-detail-layer"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35 }}
-            >
-              <button
-                type="button"
-                className="elite-building-detail-scrim"
-                aria-label="Close details"
-                onClick={() => setDetailClip(null)}
-              />
-              <motion.div
-                className="elite-building-detail-sheet"
-                initial={{ opacity: 0, y: 36, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 24, scale: 0.99 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="elite-building-detail-title"
+              <motion.h2
+                className="elite-immersive-headline font-artful"
+                key={`headline-${activeIndex}`}
+                initial={{ opacity: 0, y: 22 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.04 }}
               >
-                <div className="elite-building-detail-layout">
-                  <div className="elite-building-detail-brand">
-                    <div className="elite-building-detail-brand-main">
-                      <span className="elite-building-detail-logo">
-                        <img
-                          src="/assets/vyana-logo.png"
-                          alt=""
-                          width={320}
-                          height={120}
-                          className="elite-building-detail-logo-img"
-                          decoding="async"
-                        />
-                      </span>
-                      <p className="elite-building-detail-brand-headline">{eliteBrandHeadline(category.id)}</p>
-                      <p className="elite-building-detail-brand-sub">Vyana Exclusive Real Estate Hub</p>
+                {active.title.toUpperCase()}
+              </motion.h2>
+              <motion.div
+                className="elite-immersive-meta"
+                key={`meta-${activeIndex}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.32, delay: 0.1 }}
+              >
+                <span className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>
+                  <MapPin size={14} style={{ color: '#D4AF37', flexShrink: 0 }} />
+                  {active.location}
+                </span>
+              </motion.div>
+              {activeClips.length > 0 && !previewsRevealed ? (
+                <motion.p
+                  key={`hint-${activeIndex}`}
+                  className="elite-immersive-hint"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.18 }}
+                >
+                  Tap a location card to open cinematic previews below.
+                </motion.p>
+              ) : null}
+            </div>
+
+            <div
+              className="elite-immersive-carousel"
+              onMouseEnter={() => {
+                if (timerRef.current) {
+                  clearInterval(timerRef.current);
+                  timerRef.current = null;
+                }
+              }}
+              onMouseLeave={() => resetAutoAdvance()}
+            >
+              <div
+                ref={cardsRailRef}
+                className="elite-immersive-cards-rail"
+                role="region"
+                aria-label="Property locations · drag to scroll"
+              >
+                <div className="elite-immersive-cards">
+                  {locations.map((item, i) => (
+                    <motion.button
+                      key={item.title}
+                      ref={(el) => {
+                        cardBtnRefs.current[i] = el;
+                      }}
+                      type="button"
+                      aria-label={`View ${item.title}`}
+                      aria-current={i === activeIndex ? true : undefined}
+                      className={`elite-mini-card-wrap${i === activeIndex ? ' elite-mini-card-wrap--active' : ''}`}
+                      onClick={() => handleLocationCardClick(i)}
+                      initial={{ opacity: 0, x: 28, scale: 0.94 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      transition={{
+                        type: 'spring',
+                        damping: 22,
+                        stiffness: 280,
+                        delay: 0.14 + i * 0.12,
+                      }}
+                      whileHover={{ y: -4 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <div className="elite-mini-card">
+                        <img src={item.img} alt="" className="elite-mini-card-img" />
+                        <div className="elite-mini-card-glass">
+                          <span className="elite-mini-card-region">{item.region}</span>
+                          <span className="elite-mini-card-title">{item.title}</span>
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+              <div className="elite-immersive-carousel-footer">
+                <div className="elite-immersive-arrows">
+                  <button type="button" className="elite-immersive-arrow" onClick={() => go(-1)} aria-label="Previous property">
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button type="button" className="elite-immersive-arrow" onClick={() => go(1)} aria-label="Next property">
+                    <ChevronRight size={22} />
+                  </button>
+                </div>
+                <span className="elite-immersive-index font-artful">
+                  {String(activeIndex + 1).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="elite-immersive-exit">
+            <button type="button" onClick={onClear} className="elite-immersive-exit-btn">
+              ✕ Exit collection ✕
+            </button>
+          </div>
+        </div>
+      </motion.section>
+
+      <AnimatePresence>
+        {previewsRevealed && activeClips.length > 0 ? (
+          <motion.section
+            key={`previews-${category.id}-${activeIndex}`}
+            id="elite-market-previews"
+            className="elite-previews-below"
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            aria-label={`Video previews for ${active.title}`}
+          >
+            <div className="elite-previews-below-inner">
+              <p className="elite-clips-strip-kicker">Private previews · {active.title}</p>
+              <p className="elite-previews-below-lead">Tap a film for full building details.</p>
+              <div className="elite-clips-grid">
+                {activeClips.map((clip, ci) => (
+                  <motion.button
+                    key={clip.id}
+                    type="button"
+                    className="elite-clip-card"
+                    onClick={() => setDetailClip(clip)}
+                    initial={{ opacity: 0, y: 24, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 260,
+                      damping: 24,
+                      delay: 0.06 + ci * 0.1,
+                    }}
+                    whileHover={{ y: -4, scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <video
+                      className="elite-clip-card-video"
+                      src={clip.videoSrc}
+                      muted
+                      playsInline
+                      loop
+                      autoPlay
+                      aria-hidden
+                    />
+                    <div className="elite-clip-card-shade" aria-hidden />
+                    <div className="elite-clip-card-meta">
+                      <span className="elite-clip-card-eyebrow">{clip.tagline}</span>
+                      <span className="elite-clip-card-name">{clip.name}</span>
                     </div>
-                    <div className="elite-building-detail-brand-video-shell">
-                      <video
-                        key={detailClip.id}
-                        className="elite-building-detail-video"
-                        src={detailClip.videoSrc}
-                        controls
-                        playsInline
-                        autoPlay
-                        muted
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {detailClip ? (
+          <motion.div
+            className="elite-building-detail-layer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            <button
+              type="button"
+              className="elite-building-detail-scrim"
+              aria-label="Close details"
+              onClick={() => setDetailClip(null)}
+            />
+            <motion.div
+              className="elite-building-detail-sheet"
+              initial={{ opacity: 0, y: 36, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.99 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="elite-building-detail-title"
+            >
+              <div className="elite-building-detail-layout">
+                <div className="elite-building-detail-brand">
+                  <div className="elite-building-detail-brand-main">
+                    <span className="elite-building-detail-logo">
+                      <img
+                        src="/assets/vyana-logo.png"
+                        alt=""
+                        width={320}
+                        height={120}
+                        className="elite-building-detail-logo-img"
+                        decoding="async"
                       />
-                    </div>
-                    <div className="elite-building-detail-brand-contact">
-                      <a href="tel:+919000000000" className="elite-building-detail-brand-contact-row">
-                        <Phone className="elite-building-detail-brand-contact-ic" strokeWidth={1.75} aria-hidden />
-                        <span>+91 90000 00000</span>
-                      </a>
-                      <a href="mailto:concierge@vyana.com" className="elite-building-detail-brand-contact-row">
-                        <Mail className="elite-building-detail-brand-contact-ic" strokeWidth={1.75} aria-hidden />
-                        <span>concierge@vyana.com</span>
-                      </a>
-                    </div>
+                    </span>
+                    <p className="elite-building-detail-brand-headline">{eliteBrandHeadline(category.id)}</p>
+                    <p className="elite-building-detail-brand-sub">Vyana Exclusive Real Estate Hub</p>
                   </div>
-                  <div className="elite-building-detail-copy">
-                    <div className="elite-building-detail-copy-top">
-                      <p className="elite-building-detail-kicker gold-accent">{category.title.toUpperCase()}</p>
-                      <button
-                        type="button"
-                        className="elite-building-detail-x"
-                        onClick={() => setDetailClip(null)}
-                        aria-label="Close"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <h2 id="elite-building-detail-title" className="elite-building-detail-title font-artful">
-                      {detailClip.name}
-                    </h2>
-                    <p className="elite-building-detail-tagline">{detailClip.tagline}</p>
-                    <ul className="elite-building-detail-specs" aria-label="Offering tags">
-                      {detailClip.specs.map((s) => (
-                        <li key={s}>{s}</li>
-                      ))}
-                    </ul>
-                    <div className="elite-building-detail-desc-group">
-                      {detailClip.description
-                        .split(/\n\n+/)
-                        .map((p) => p.trim())
-                        .filter(Boolean)
-                        .map((para, i) => (
-                          <p key={i} className="elite-building-detail-desc">
-                            {para}
-                          </p>
-                        ))}
-                    </div>
-                    <ul className="elite-building-detail-highlights" aria-label="Highlights">
-                      {detailClip.highlights.map((h) => (
-                        <li key={h}>{h}</li>
-                      ))}
-                    </ul>
-                    <div className="elite-building-detail-actions">
-                      <Link to="/contact" className="elite-building-detail-cta" onClick={() => setDetailClip(null)}>
-                        Request private memo
-                      </Link>
-                    </div>
+                  <div className="elite-building-detail-brand-video-shell">
+                    <video
+                      key={detailClip.id}
+                      className="elite-building-detail-video"
+                      src={detailClip.videoSrc}
+                      controls
+                      playsInline
+                      autoPlay
+                      muted
+                    />
+                  </div>
+                  <div className="elite-building-detail-brand-contact">
+                    <a href="tel:+919000000000" className="elite-building-detail-brand-contact-row">
+                      <Phone className="elite-building-detail-brand-contact-ic" strokeWidth={1.75} aria-hidden />
+                      <span>+91 90000 00000</span>
+                    </a>
+                    <a href="mailto:concierge@vyana.com" className="elite-building-detail-brand-contact-row">
+                      <Mail className="elite-building-detail-brand-contact-ic" strokeWidth={1.75} aria-hidden />
+                      <span>concierge@vyana.com</span>
+                    </a>
                   </div>
                 </div>
-              </motion.div>
+                <div className="elite-building-detail-copy">
+                  <div className="elite-building-detail-copy-top">
+                    <p className="elite-building-detail-kicker gold-accent">{category.title.toUpperCase()}</p>
+                    <button
+                      type="button"
+                      className="elite-building-detail-x"
+                      onClick={() => setDetailClip(null)}
+                      aria-label="Close"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <h2 id="elite-building-detail-title" className="elite-building-detail-title font-artful">
+                    {detailClip.name}
+                  </h2>
+                  <p className="elite-building-detail-tagline">{detailClip.tagline}</p>
+                  <ul className="elite-building-detail-specs" aria-label="Offering tags">
+                    {detailClip.specs.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                  <div className="elite-building-detail-desc-group">
+                    {detailClip.description
+                      .split(/\n\n+/)
+                      .map((p) => p.trim())
+                      .filter(Boolean)
+                      .map((para, i) => (
+                        <p key={i} className="elite-building-detail-desc">
+                          {para}
+                        </p>
+                      ))}
+                  </div>
+                  <ul className="elite-building-detail-highlights" aria-label="Highlights">
+                    {detailClip.highlights.map((h) => (
+                      <li key={h}>{h}</li>
+                    ))}
+                  </ul>
+                  <div className="elite-building-detail-actions">
+                    <Link to="/contact" className="elite-building-detail-cta" onClick={() => setDetailClip(null)}>
+                      Request private memo
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </motion.div>
-          ) : null}
-        </AnimatePresence>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
     </>
   );
 };
 
 
-const HOMEPAGE_HERO_VIDEO_SRC = '/assets/hero-scroll.mp4';
+const HOMEPAGE_HERO_VIDEO_DESKTOP = '/assets/hero-scroll-optimized.mp4';
+const HOMEPAGE_HERO_VIDEO_MOBILE = '/assets/hero-scroll-mobile.mp4';
 
-const HomepageHero = () => (
-  <div className="home-snap-section home-snap-section--fill">
-    <section className="homepage-hero" aria-label="Vyana hero video">
-      <video
-        className="homepage-hero-video"
-        src={HOMEPAGE_HERO_VIDEO_SRC}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label="Luxury real estate showcase"
-      />
-      <div className="homepage-hero-scrim" aria-hidden />
-    </section>
-  </div>
-);
+const HomepageHero = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoSrc, setVideoSrc] = useState(HOMEPAGE_HERO_VIDEO_DESKTOP);
+  const { scrollYProgress } = useScroll({ target: containerRef });
+
+  const smoothProgress = useSpring(scrollYProgress, {
+    damping: 25,
+    stiffness: 180,
+    mass: 0.4,
+    restDelta: 0.001
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setVideoSrc(window.innerWidth <= 768 ? HOMEPAGE_HERO_VIDEO_MOBILE : HOMEPAGE_HERO_VIDEO_DESKTOP);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    let frameId: number;
+    const video = videoRef.current;
+
+    const updateLoop = () => {
+      if (video && video.readyState >= 2) {
+        const duration = video.duration;
+        if (!isNaN(duration) && duration > 0) {
+          const targetTime = smoothProgress.get() * duration;
+          // Faster but still smooth interpolation for better response on scroll up/down
+          const diff = targetTime - video.currentTime;
+          if (Math.abs(diff) > 0.0001) {
+            video.currentTime += diff * 0.18;
+          }
+        }
+      }
+      frameId = requestAnimationFrame(updateLoop);
+    };
+
+    frameId = requestAnimationFrame(updateLoop);
+    return () => cancelAnimationFrame(frameId);
+  }, [smoothProgress]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ height: '800vh', position: 'relative' }}
+    >
+      <section style={{ position: 'sticky', top: 0, height: '100dvh', width: '100%', overflow: 'hidden', background: '#000', isolation: 'isolate' }} aria-label="Vyana hero video">
+        <video
+          ref={videoRef}
+          src={videoSrc}
+          muted
+          playsInline
+          autoPlay={false}
+          loop={false}
+          preload="auto"
+          onLoadedMetadata={() => {
+            if (videoRef.current) {
+              videoRef.current.currentTime = 0;
+            }
+          }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block', userSelect: 'none', pointerEvents: 'none' }}
+        />
+        <div className="homepage-hero-scrim" aria-hidden />
+
+        {/* Branding text overlay */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, padding: '2rem' }}>
+          <motion.div
+            style={{ textAlign: 'center' }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.5 }}
+          >
+            <h1 className="hero-text-mask" style={{
+              fontSize: 'clamp(2.75rem, 14vw, 10rem)',
+              fontWeight: 900,
+              lineHeight: 0.9,
+              margin: 0,
+              textTransform: 'uppercase',
+              letterSpacing: '-0.02em'
+            }}>
+              Vyana<br />
+              <span style={{ fontSize: '0.45em', letterSpacing: '0.3em', marginLeft: '0.2em' }}>Real Estate</span>
+            </h1>
+          </motion.div>
+        </div>
+      </section>
+    </div>
+  );
+};
 
 const EliteCollection = () => {
   const navigate = useNavigate();
@@ -837,7 +944,7 @@ const EliteCollection = () => {
 
   return (
     <>
-      <div className="home-snap-section home-snap-section--fill">
+      <StackedSection index={1}>
         <HomeReveal>
           <section className="elite-section" id="elite-collection">
             <div className="elite-section-building-bg" aria-hidden>
@@ -876,33 +983,92 @@ const EliteCollection = () => {
             </div>
           </section>
         </HomeReveal>
-      </div>
-      <div className="home-snap-section">
+      </StackedSection>
+
+      <StackedSection index={2}>
         <HomeReveal>
           <PartnersSection />
         </HomeReveal>
-      </div>
-      <div className="home-snap-section">
+      </StackedSection>
+
+      <StackedSection index={3}>
         <HomeReveal>
           <StrategicDominanceSection />
         </HomeReveal>
-      </div>
-      <div className="home-snap-section">
+      </StackedSection>
+
+      <StackedSection index={4}>
         <HomeReveal>
           <YearDialSection />
         </HomeReveal>
-      </div>
-      <div className="home-snap-section">
+      </StackedSection>
+
+      <StackedSection index={5}>
         <HomeReveal>
           <WhyChooseUsSection />
         </HomeReveal>
-      </div>
-      <div className="home-snap-section">
+      </StackedSection>
+
+      <StackedSection index={6}>
         <HomeReveal>
           <ProcessRibbonSection />
         </HomeReveal>
+      </StackedSection>
+
+      <div className="home-snap-section stacked-section" style={{ zIndex: 70, minHeight: 'auto', backgroundColor: '#000' }}>
+        <SiteFooter />
       </div>
     </>
+  );
+};
+
+const StackedSection = ({ children, index }: { children: React.ReactNode; index: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"]
+  });
+
+  const scale = useSpring(useTransform(scrollYProgress, [0, 1], [1, 0.95]), {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0.5]);
+
+  return (
+    <motion.div
+      ref={ref}
+      className="home-snap-section stacked-section"
+      style={{
+        zIndex: index * 10,
+        backgroundColor: '#000',
+        minHeight: '100vh',
+        height: 'auto',
+        position: 'sticky',
+        top: 0,
+        marginTop: '-1px',
+        borderTop: '1px solid #000'
+      }}
+    >
+      <div style={{
+        width: '100%',
+        minHeight: window.innerWidth <= 768 ? 'auto' : '100vh',
+        paddingTop: window.innerWidth <= 768 ? '4rem' : '8rem',
+        paddingBottom: window.innerWidth <= 768 ? '1rem' : '3rem',
+        backgroundColor: '#000',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: window.innerWidth <= 768 ? 'flex-start' : 'center',
+        alignItems: 'center',
+        overflowY: 'auto',
+        overflowX: 'hidden'
+      }}>
+        {children}
+      </div>
+    </motion.div>
   );
 };
 
@@ -1201,9 +1367,35 @@ function EliteCategoryPage() {
   );
 }
 
+function HubPage() {
+  const { hubName } = useParams();
+  const navigate = useNavigate();
+
+  const location = useMemo(() => {
+    return LOCATIONS_RESIDENTIAL.find(l => l.title.toLowerCase() === hubName?.toLowerCase());
+  }, [hubName]);
+
+  if (!location) {
+    return <Navigate to="/" replace />;
+  }
+
+  // We wrap the single location in an array to reuse SubCollection components
+  const category = categories[0]; // Default to Residential category for Hub pages
+
+  return (
+    <div className="hub-page-wrapper">
+      <SubCollection
+        category={category}
+        locations={[location]}
+        onClear={() => navigate('/')}
+        initialRevealed={true}
+      />
+    </div>
+  );
+}
+
 function HomePage() {
   const location = useLocation();
-  useHomeScrollSnapClass(true);
 
   useEffect(() => {
     const raw = location.hash.replace(/^#/, '');
@@ -1226,22 +1418,31 @@ function HomePage() {
 }
 
 export default function App() {
+  const [introFinished, setIntroFinished] = useState(false);
+
   return (
-    <main style={{ backgroundColor: '#0a0a0a', minHeight: '100vh' }}>
-      <Header />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/elite" element={<Navigate to="/elite/01" replace />} />
-        <Route path="/elite/:categoryId" element={<EliteCategoryPage />} />
-        <Route path="/disclaimer" element={<DisclaimerPage />} />
-        <Route path="/about" element={<AboutUsPage />} />
-        <Route path="/contact" element={<ContactUsPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/rera" element={<ReraPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <SiteFooter />
-    </main>
+    <>
+      <WelcomeIntro onComplete={() => setIntroFinished(true)} />
+      <main
+        className={introFinished ? 'app-visible' : 'app-hidden'}
+        style={{ backgroundColor: '#0a0a0a', minHeight: '100vh' }}
+      >
+        <Header />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/elite" element={<Navigate to="/elite/01" replace />} />
+          <Route path="/elite/:categoryId" element={<EliteCategoryPage />} />
+          <Route path="/disclaimer" element={<DisclaimerPage />} />
+          <Route path="/about" element={<AboutUsPage />} />
+          <Route path="/contact" element={<ContactUsPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/hub/:hubName" element={<HubPage />} />
+          <Route path="/rera" element={<ReraPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <SiteFooter />
+      </main>
+    </>
   );
 }

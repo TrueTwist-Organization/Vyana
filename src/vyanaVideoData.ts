@@ -14,7 +14,7 @@ export type PropertyClip = {
   highlights: string[];
 };
 
-const MICRO_ORDER = ['Gota', 'Vaishnodevi', 'Shela', 'Thaltej', 'Bopal'] as const;
+const MICRO_ORDER = ['Iscon', 'Vaishnodevi', 'Shela', 'Thaltej', 'Bopal'] as const;
 
 /**
  * Every `.mp4` under `public/video for vyana/residantial/` (alphabetical).
@@ -27,14 +27,6 @@ export const RESIDENTIAL_FOLDER_FILENAMES = [
   'download (43).mp4',
   'download (5).mp4',
   'download.mp4',
-  'Untitled design (1).mp4',
-  'Untitled design (2).mp4',
-  'Untitled design.mp4',
-  'WhatsApp Video 2026-05-07 at 1.02.58 PM.mp4',
-  'WhatsApp Video 2026-05-07 at 12.10.13 PM.mp4',
-  'WhatsApp Video 2026-05-07 at 12.33.26 PM.mp4',
-  'WhatsApp Video 2026-05-07 at 12.36.54 PM.mp4',
-  'WhatsApp Video 2026-05-07 at 12.38.40 PM.mp4',
 ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
 const RESIDENTIAL_URLS = RESIDENTIAL_FOLDER_FILENAMES.map((f) => r(f));
@@ -54,14 +46,29 @@ const INDUSTRIAL_URLS = INDUSTRIAL_FOLDER_FILENAMES.map((f) => i(f));
 
 const CLIPS_PER_MICRO = 3;
 
-function distributeUrls(urls: string[], locationIndex: number, locationCount: number, take: number): string[] {
-  if (urls.length === 0) return [];
-  const out: string[] = [];
-  for (let j = 0; j < take; j++) {
-    const idx = locationIndex + j * locationCount;
-    out.push(urls[idx % urls.length]);
+const MASTER_POOL = [...RESIDENTIAL_URLS, ...COMMERCIAL_URLS, ...INDUSTRIAL_URLS];
+
+function getGlobalClips(
+  areaTitle: string,
+  areaDesc: string,
+  basePoolIndex: number,
+  count: number,
+  prefix: string
+): PropertyClip[] {
+  const clips: PropertyClip[] = [];
+  for (let j = 0; j < count; j++) {
+    const poolIdx = basePoolIndex + j;
+    if (poolIdx >= MASTER_POOL.length) break;
+
+    const videoSrc = MASTER_POOL[poolIdx];
+    const meta = makeClipMeta(areaTitle, areaDesc, j);
+    clips.push({
+      id: `${prefix}-${areaTitle}-${j}`,
+      videoSrc,
+      ...meta,
+    });
   }
-  return out;
+  return clips;
 }
 
 function makeClipMeta(areaTitle: string, areaDesc: string, clipSlot: number): Omit<PropertyClip, 'id' | 'videoSrc'> {
@@ -78,48 +85,23 @@ function makeClipMeta(areaTitle: string, areaDesc: string, clipSlot: number): Om
   };
 }
 
-function buildClipsForMicro(
-  areaTitle: string,
-  areaDesc: string,
-  locationIndex: number,
-  locationCount: number,
-  pool: string[],
-): PropertyClip[] {
-  const urls = distributeUrls(pool, locationIndex, locationCount, CLIPS_PER_MICRO);
-  return urls.map((videoSrc, clipSlot) => {
-    const meta = makeClipMeta(areaTitle, areaDesc, clipSlot);
-    return {
-      id: `${areaTitle}-clip${clipSlot}`,
-      videoSrc,
-      ...meta,
-    };
-  });
-}
-
 export function residentialClipsByTitle(title: string, areaDesc: string): PropertyClip[] {
   const idx = MICRO_ORDER.indexOf(title as (typeof MICRO_ORDER)[number]);
   if (idx < 0) return [];
-  return buildClipsForMicro(title, areaDesc, idx, MICRO_ORDER.length, RESIDENTIAL_URLS);
+  // Assign 2 unique videos per residential location (0-9)
+  return getGlobalClips(title, areaDesc, idx * 2, 2, 'res');
 }
 
 export function commercialClipsByTitle(title: string, areaDesc: string): PropertyClip[] {
   const idx = MICRO_ORDER.indexOf(title as (typeof MICRO_ORDER)[number]);
   if (idx < 0) return [];
-  return buildClipsForMicro(title, areaDesc, idx, MICRO_ORDER.length, COMMERCIAL_URLS);
+  // Assign 2 unique videos per commercial location starting from index 10 (10-19)
+  return getGlobalClips(title, areaDesc, 10 + idx * 2, 2, 'com');
 }
 
 export function industrialClipsByTitle(title: string, areaDesc: string): PropertyClip[] {
-  const locationCount = 2;
   const idx = title === 'Naroda' ? 0 : title === 'Sanand' ? 1 : -1;
   if (idx < 0) return [];
-  const take = 2;
-  const urls = distributeUrls(INDUSTRIAL_URLS, idx, locationCount, take);
-  return urls.map((videoSrc, clipSlot) => {
-    const meta = makeClipMeta(title, areaDesc, clipSlot);
-    return {
-      id: `${title}-ind-${clipSlot}`,
-      videoSrc,
-      ...meta,
-    };
-  });
+  // Assign 1 unique video per industrial location starting from index 20 (20-21)
+  return getGlobalClips(title, areaDesc, 20 + idx, 1, 'ind');
 }
