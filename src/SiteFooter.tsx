@@ -190,17 +190,43 @@ export function SiteFooter() {
         </div>
 
         <div className="site-footer-bottom">
-          <p className="site-footer-copy">
-            © {year} Vyana Exclusive Real Estate Hub. All rights reserved.
-          </p>
-          <nav className="site-footer-legal" aria-label="Legal">
-            <Link to="/disclaimer" className="site-footer-legal-link">
-              Disclaimer
-            </Link>
-            <Link to="/rera" className="site-footer-legal-link">
-              RERA Compliance
-            </Link>
-          </nav>
+          <div className="site-footer-bottom-row">
+            <p className="site-footer-copy">
+              © {year} Vyana Exclusive Real Estate Hub. All rights reserved.
+            </p>
+            <nav className="site-footer-legal" aria-label="Legal">
+              <Link to="/disclaimer" className="site-footer-legal-link">
+                Disclaimer
+              </Link>
+              <Link to="/rera" className="site-footer-legal-link">
+                RERA Compliance
+              </Link>
+            </nav>
+          </div>
+          <div className="site-footer-credits" aria-label="Partners">
+            <p className="site-footer-credit-line">
+              Design by{' '}
+              <a
+                href="https://truetwist.in/"
+                className="site-footer-credit-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                TrueTwist
+              </a>
+            </p>
+            <p className="site-footer-credit-line">
+              Marketing by{' '}
+              <a
+                href="https://369network.com/"
+                className="site-footer-credit-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                369 Network
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </footer>

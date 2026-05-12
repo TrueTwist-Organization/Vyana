@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
 import { Routes, Route, Navigate, useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { ChevronRight, MapPin, Menu, ChevronLeft, ChevronDown, Phone, Mail } from 'lucide-react';
@@ -811,17 +811,39 @@ const SubCollection = ({ category, locations, onClear, initialRevealed = false }
 const HOMEPAGE_HERO_VIDEO_DESKTOP = '/assets/hero-scroll-optimized.mp4';
 const HOMEPAGE_HERO_VIDEO_MOBILE = '/assets/hero-scroll-mobile.mp4';
 
+function useHeroTouchDirectScrub() {
+  const [direct, setDirect] = useState(false);
+  useEffect(() => {
+    const update = () => {
+      const narrow = window.matchMedia('(max-width: 768px)').matches;
+      const coarse = window.matchMedia('(pointer: coarse)').matches;
+      setDirect(narrow || coarse);
+    };
+    update();
+    const mqN = window.matchMedia('(max-width: 768px)');
+    const mqC = window.matchMedia('(pointer: coarse)');
+    mqN.addEventListener('change', update);
+    mqC.addEventListener('change', update);
+    return () => {
+      mqN.removeEventListener('change', update);
+      mqC.removeEventListener('change', update);
+    };
+  }, []);
+  return direct;
+}
+
 const HomepageHero = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoSrc, setVideoSrc] = useState(HOMEPAGE_HERO_VIDEO_DESKTOP);
+  const touchDirectScrub = useHeroTouchDirectScrub();
   const { scrollYProgress } = useScroll({ target: containerRef });
 
   const smoothProgress = useSpring(scrollYProgress, {
     damping: 25,
     stiffness: 180,
     mass: 0.4,
-    restDelta: 0.001
+    restDelta: 0.001,
   });
 
   useEffect(() => {
@@ -833,19 +855,61 @@ const HomepageHero = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  /** iOS: inline attrs + prime decoder (otherwise first frames often stay black). */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+
+    const prime = () => {
+      video.muted = true;
+      void video.play().then(() => {
+        video.pause();
+        try {
+          video.currentTime = 0;
+        } catch {
+          /* ignore */
+        }
+      });
+    };
+
+    if (video.readyState >= 2) prime();
+    else video.addEventListener('loadeddata', prime, { once: true });
+
+    return () => video.removeEventListener('loadeddata', prime);
+  }, [videoSrc]);
+
+  /** First touch on hero unlocks iOS inline playback if autoplay policies blocked priming. */
+  useEffect(() => {
+    const root = containerRef.current;
+    const video = videoRef.current;
+    if (!root || !video) return;
+    const onTouch = () => {
+      video.muted = true;
+      void video.play().catch(() => {});
+    };
+    root.addEventListener('touchstart', onTouch, { passive: true, capture: true });
+    return () => root.removeEventListener('touchstart', onTouch, { capture: true });
+  }, [videoSrc]);
+
   useEffect(() => {
     let frameId: number;
     const video = videoRef.current;
+    const lerp = touchDirectScrub ? 0.42 : 0.18;
 
     const updateLoop = () => {
       if (video && video.readyState >= 2) {
         const duration = video.duration;
         if (!isNaN(duration) && duration > 0) {
-          const targetTime = smoothProgress.get() * duration;
-          // Faster but still smooth interpolation for better response on scroll up/down
+          const progress = touchDirectScrub ? scrollYProgress.get() : smoothProgress.get();
+          const targetTime = progress * duration;
           const diff = targetTime - video.currentTime;
           if (Math.abs(diff) > 0.0001) {
-            video.currentTime += diff * 0.18;
+            video.currentTime += diff * lerp;
           }
         }
       }
@@ -854,7 +918,7 @@ const HomepageHero = () => {
 
     frameId = requestAnimationFrame(updateLoop);
     return () => cancelAnimationFrame(frameId);
-  }, [smoothProgress]);
+  }, [smoothProgress, scrollYProgress, touchDirectScrub]);
 
   return (
     <div
@@ -863,13 +927,17 @@ const HomepageHero = () => {
     >
       <section style={{ position: 'sticky', top: 0, height: '100dvh', width: '100%', overflow: 'hidden', background: '#000', isolation: 'isolate' }} aria-label="Vyana hero video">
         <video
+          key={videoSrc}
           ref={videoRef}
+          className="homepage-hero-video"
           src={videoSrc}
           muted
           playsInline
           autoPlay={false}
           loop={false}
           preload="auto"
+          controls={false}
+          disablePictureInPicture
           onLoadedMetadata={() => {
             if (videoRef.current) {
               videoRef.current.currentTime = 0;
@@ -1153,6 +1221,7 @@ const Card = ({ cat, onClick }: { cat: Category; onClick?: () => void }) => {
 
 const Header = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
@@ -1200,7 +1269,26 @@ const Header = () => {
     <header className={`site-header${isScrolled ? ' site-header--scrolled' : ''}`}>
       <div className="header-pill">
         <div className="header-pill-row">
-          <Link to="/" className="header-wordmark" onClick={closeNav} aria-label="Vyana — home">
+          <Link
+            to="/"
+            className="header-wordmark"
+            aria-label="Vyana — home"
+            onClick={(e) => {
+              closeNav();
+              const onHomeRoot =
+                location.pathname === '/' && !location.hash && !location.search;
+              if (onHomeRoot) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                return;
+              }
+              e.preventDefault();
+              navigate({ pathname: '/', hash: '', search: '' });
+              queueMicrotask(() => {
+                window.scrollTo(0, 0);
+              });
+            }}
+          >
             <img
               src="/assets/vyana-logo.png"
               alt=""
@@ -1357,10 +1445,6 @@ function EliteCategoryPage() {
   const navigate = useNavigate();
   const category = categories.find((c) => c.id === categoryId);
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [categoryId]);
-
   if (!category) {
     return <Navigate to="/" replace />;
   }
@@ -1434,17 +1518,51 @@ function HomePage() {
   );
 }
 
+/** Session: after intro completes once, refresh on any route skips welcome video. */
+const WELCOME_INTRO_SESSION_KEY = 'vyana_welcome_intro_seen';
+
+/** Every real navigation starts at the top (hero), not mid-page / footer scroll. */
+function ScrollToTop() {
+  const { pathname, search, hash } = useLocation();
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname, search, hash]);
+  return null;
+}
+
 export default function App() {
-  const [introFinished, setIntroFinished] = useState(false);
+  const [introFinished, setIntroFinished] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      if (window.sessionStorage.getItem(WELCOME_INTRO_SESSION_KEY) === '1') return true;
+      const p = window.location.pathname;
+      if (p === '/elite' || p.startsWith('/elite/')) return true;
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  const handleIntroComplete = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(WELCOME_INTRO_SESSION_KEY, '1');
+    } catch {
+      /* private mode / quota */
+    }
+    setIntroFinished(true);
+  }, []);
 
   return (
     <>
-      <WelcomeIntro onComplete={() => setIntroFinished(true)} />
+      {!introFinished ? <WelcomeIntro onComplete={handleIntroComplete} /> : null}
       <main
         className={introFinished ? 'app-visible' : 'app-hidden'}
         style={{ backgroundColor: '#0a0a0a', minHeight: '100vh' }}
       >
         <Header />
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/elite" element={<Navigate to="/elite/01" replace />} />

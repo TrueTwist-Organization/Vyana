@@ -229,6 +229,14 @@ body {
   pointer-events: none;
 }
 
+/* Hero homepage video: iOS Safari often needs a composited layer to paint decoded frames while scrubbing */
+.homepage-hero-video {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
 .hero-scrub-scrim {
   position: absolute;
   inset: 0;
@@ -651,6 +659,14 @@ body {
   flex-shrink: 0;
   text-decoration: none;
   line-height: 0;
+  cursor: pointer;
+  /* Larger tap target: logo area fully clickable on mobile */
+  padding: 0.35rem 0.45rem;
+  margin: -0.35rem -0.45rem;
+  min-height: 44px;
+  min-width: 44px;
+  box-sizing: content-box;
+  -webkit-tap-highlight-color: transparent;
   transition: filter 0.25s ease, opacity 0.25s ease;
 }
 
