@@ -109,13 +109,30 @@ const LOCATIONS_WEST_MICRO: SubLocation[] = [
   },
 ];
 
+/** Residential micro-market hero images (subset of west Ahmedabad) */
+const RESIDENTIAL_LOCATION_IMAGES: Record<string, string> = {
+  Shela: '/assets/residential-shela.png',
+  Thaltej: '/assets/residential-thaltej.png',
+};
+
 const LOCATIONS_RESIDENTIAL: SubLocation[] = LOCATIONS_WEST_MICRO.map((loc) => ({
   ...loc,
+  img: RESIDENTIAL_LOCATION_IMAGES[loc.title] ?? loc.img,
   clips: residentialClipsByTitle(loc.title, loc.desc),
 }));
 
+/** Commercial micro-market hero images (west Ahmedabad) */
+const COMMERCIAL_LOCATION_IMAGES: Record<string, string> = {
+  Bopal: '/assets/commercial-bopal.png',
+  Thaltej: '/assets/commercial-thaltej.png',
+  Shela: '/assets/commercial-shela.png',
+  Vaishnodevi: '/assets/commercial-vaishnodevi.png',
+  Iscon: '/assets/commercial-iscon.png',
+};
+
 const LOCATIONS_COMMERCIAL: SubLocation[] = LOCATIONS_WEST_MICRO.map((loc) => ({
   ...loc,
+  img: COMMERCIAL_LOCATION_IMAGES[loc.title] ?? loc.img,
   clips: commercialClipsByTitle(loc.title, loc.desc),
 }));
 
@@ -125,7 +142,7 @@ const LOCATIONS_INDUSTRIAL: SubLocation[] = [
     price: 'On request',
     region: 'Industrial belt',
     location: 'Naroda · Ahmedabad East',
-    img: '/assets/commercial-cutout.png',
+    img: '/assets/industrial-naroda.png',
     desc: 'Established industrial belt with legacy manufacturing, logistics access, and redevelopment upside.',
   },
   {
@@ -133,7 +150,7 @@ const LOCATIONS_INDUSTRIAL: SubLocation[] = [
     price: 'On request',
     region: 'GIDC corridor',
     location: 'Sanand · Ahmedabad West',
-    img: '/assets/investment.png',
+    img: '/assets/industrial-sanand.png',
     desc: 'GIDC-led growth node with large-format warehousing, automotive adjacency, and Narmada corridor connectivity.',
   },
 ].map((loc) => ({
