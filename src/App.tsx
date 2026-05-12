@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
 import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
 import { Routes, Route, Navigate, useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { ChevronRight, MapPin, Menu, ChevronLeft, ChevronDown, Phone, Mail } from 'lucide-react';
@@ -24,6 +24,9 @@ import {
   type PropertyClip,
 } from './vyanaVideoData';
 import { WelcomeIntro } from './WelcomeIntro';
+
+/** When false, main site still mounts (loads) but hero scroll video stays off so welcome intro is not starved. */
+const IntroPlaybackContext = createContext<{ introComplete: boolean }>({ introComplete: true });
 
 // --- DATA ---
 
@@ -833,6 +836,7 @@ function useHeroTouchDirectScrub() {
 }
 
 const HomepageHero = () => {
+  const { introComplete } = useContext(IntroPlaybackContext);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoSrc, setVideoSrc] = useState(HOMEPAGE_HERO_VIDEO_DESKTOP);
@@ -857,6 +861,7 @@ const HomepageHero = () => {
 
   /** iOS: inline attrs + prime decoder (otherwise first frames often stay black). */
   useEffect(() => {
+    if (!introComplete) return;
     const video = videoRef.current;
     if (!video) return;
     video.setAttribute('playsinline', '');
@@ -881,10 +886,11 @@ const HomepageHero = () => {
     else video.addEventListener('loadeddata', prime, { once: true });
 
     return () => video.removeEventListener('loadeddata', prime);
-  }, [videoSrc]);
+  }, [videoSrc, introComplete]);
 
   /** First touch on hero unlocks iOS inline playback if autoplay policies blocked priming. */
   useEffect(() => {
+    if (!introComplete) return;
     const root = containerRef.current;
     const video = videoRef.current;
     if (!root || !video) return;
@@ -894,9 +900,10 @@ const HomepageHero = () => {
     };
     root.addEventListener('touchstart', onTouch, { passive: true, capture: true });
     return () => root.removeEventListener('touchstart', onTouch, { capture: true });
-  }, [videoSrc]);
+  }, [videoSrc, introComplete]);
 
   useEffect(() => {
+    if (!introComplete) return;
     let frameId: number;
     const video = videoRef.current;
     const lerp = touchDirectScrub ? 0.42 : 0.18;
@@ -918,7 +925,9 @@ const HomepageHero = () => {
 
     frameId = requestAnimationFrame(updateLoop);
     return () => cancelAnimationFrame(frameId);
-  }, [smoothProgress, scrollYProgress, touchDirectScrub]);
+  }, [smoothProgress, scrollYProgress, touchDirectScrub, introComplete]);
+
+  const heroVideoSrc = introComplete ? videoSrc : undefined;
 
   return (
     <div
@@ -926,11 +935,12 @@ const HomepageHero = () => {
       style={{ height: '800vh', position: 'relative' }}
     >
       <section style={{ position: 'sticky', top: 0, height: '100dvh', width: '100%', overflow: 'hidden', background: '#000', isolation: 'isolate' }} aria-label="Vyana hero video">
+        {heroVideoSrc ? (
         <video
           key={videoSrc}
           ref={videoRef}
           className="homepage-hero-video"
-          src={videoSrc}
+          src={heroVideoSrc}
           muted
           playsInline
           autoPlay={false}
@@ -945,6 +955,7 @@ const HomepageHero = () => {
           }}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block', userSelect: 'none', pointerEvents: 'none' }}
         />
+        ) : null}
         <div className="homepage-hero-scrim" aria-hidden />
 
         {/* Branding text overlay */}
@@ -1558,9 +1569,11 @@ export default function App() {
     <>
       {!introFinished ? <WelcomeIntro onComplete={handleIntroComplete} /> : null}
       <main
+        inert={!introFinished}
         className={introFinished ? 'app-visible' : 'app-hidden'}
         style={{ backgroundColor: '#0a0a0a', minHeight: '100vh' }}
       >
+        <IntroPlaybackContext.Provider value={{ introComplete: introFinished }}>
         <Header />
         <ScrollToTop />
         <Routes>
@@ -1577,6 +1590,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <SiteFooter />
+        </IntroPlaybackContext.Provider>
       </main>
     </>
   );

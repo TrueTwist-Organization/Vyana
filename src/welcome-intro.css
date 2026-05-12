@@ -44,16 +44,16 @@
   transform: translateY(-2px);
 }
 
-/* Fade out animation for the app if needed */
+/* Main app while intro plays: invisible + inert, but still mounted so routes/assets load; do not use visibility:hidden (hurts loading). */
 .app-hidden {
   opacity: 0;
-  visibility: hidden;
+  pointer-events: none;
 }
 
 .app-visible {
   opacity: 1;
-  visibility: visible;
-  transition: opacity 1s ease-in-out;
+  pointer-events: auto;
+  transition: opacity 0.75s ease-in-out;
 }
 
 .welcome-splash {
