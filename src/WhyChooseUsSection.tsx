@@ -219,17 +219,47 @@ export function WhyChooseUsSection() {
   const useHoverFlip = useHoverFinePointer();
   const trackRef = useRef<HTMLDivElement>(null);
   const chunkRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const draggingRef = useRef(false);
   const userPauseUntilRef = useRef(0);
+  const hasResetOnViewRef = useRef(false);
 
   const bumpUserPause = useCallback(() => {
     userPauseUntilRef.current = performance.now() + MARQUEE_PAUSE_MS;
+  }, []);
+
+  /** Every time section enters viewport, snap back to card 01 and give a pause. */
+  useEffect(() => {
+    const section = sectionRef.current;
+    const rail = trackRef.current;
+    if (!section || !rail) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            rail.scrollLeft = 0;
+            userPauseUntilRef.current = performance.now() + 2800;
+            hasResetOnViewRef.current = true;
+          }
+        }
+      },
+      { threshold: 0.15 },
+    );
+    obs.observe(section);
+    return () => obs.disconnect();
   }, []);
 
   useEffect(() => {
     const rail = trackRef.current;
     const chunk = chunkRef.current;
     if (!rail || !chunk) return;
+
+    /* Always start from card 01 */
+    rail.scrollLeft = 0;
+
+    /* Give a 2.5s head-start so card 01 is visible before scrolling begins */
+    userPauseUntilRef.current = performance.now() + 2500;
 
     let chunkWidth = 0;
     let rafId = 0;
@@ -315,7 +345,7 @@ export function WhyChooseUsSection() {
   }, [reduceMotion, bumpUserPause]);
 
   return (
-    <section className="why-choose-section" id="why-choose" aria-labelledby="why-choose-heading">
+    <section ref={sectionRef} className="why-choose-section" id="why-choose" aria-labelledby="why-choose-heading">
       <div className="why-choose-inner why-choose-inner--timeline">
         <motion.div
           className="why-choose-header"

@@ -35,44 +35,27 @@ html {
   scroll-margin-top: clamp(5rem, 14vw, 6.75rem);
 }
 
-/* Homepage: turn-by-turn scroll snap + reveal (desktop/tablet; off for reduced motion) */
-@media (min-width: 768px) {
-  html.home-snap-active {
-    scroll-snap-type: y mandatory;
-    scroll-behavior: smooth;
-    scroll-padding-top: clamp(4.75rem, 11vw, 6.75rem);
-  }
-
-  @media (max-width: 768px) {
-    html.home-snap-active {
-      scroll-snap-type: y mandatory;
-    }
-  }
+/* Homepage: scroll snap DISABLED — sections flow normally */
+html.home-snap-active {
+  scroll-snap-type: none;
 }
 
-/* Premium Stacked Card Effect (Global) */
+/* Stacked-section overrides — all sticky/snap behaviour removed */
 .stacked-section {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  position: static !important;
+  height: auto !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  scroll-snap-align: none !important;
+  overflow: visible !important;
+}
+
+/* Normal section wrapper for homepage sections */
+.normal-section-wrap {
   width: 100%;
   background-color: #000;
-  border-top-left-radius: clamp(1rem, 5vw, 3rem);
-  border-top-right-radius: clamp(1rem, 5vw, 3rem);
-  box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.9);
-  z-index: 1;
-  will-change: transform, opacity;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  /* Force content to fit 100vh */
-  isolation: isolate;
+  position: relative;
 }
 
 /* Hide scrollbars for internal card scrolling */

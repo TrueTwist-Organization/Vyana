@@ -1040,7 +1040,7 @@ const EliteCollection = () => {
 
   return (
     <>
-      <StackedSection index={1}>
+      <div className="normal-section-wrap">
         <HomeReveal>
           <section className="elite-section" id="elite-collection">
             <div className="elite-section-building-bg" aria-hidden>
@@ -1079,40 +1079,36 @@ const EliteCollection = () => {
             </div>
           </section>
         </HomeReveal>
-      </StackedSection>
+      </div>
 
-      <StackedSection index={2}>
+      <div className="normal-section-wrap">
         <HomeReveal>
           <PartnersSection />
         </HomeReveal>
-      </StackedSection>
+      </div>
 
-      <StackedSection index={3}>
+      <div className="normal-section-wrap">
         <HomeReveal>
           <StrategicDominanceSection />
         </HomeReveal>
-      </StackedSection>
+      </div>
 
-      <StackedSection index={4}>
+      <div className="normal-section-wrap">
         <HomeReveal>
           <YearDialSection />
         </HomeReveal>
-      </StackedSection>
+      </div>
 
-      <StackedSection index={5}>
+      <div className="normal-section-wrap">
         <HomeReveal>
           <WhyChooseUsSection />
         </HomeReveal>
-      </StackedSection>
+      </div>
 
-      <StackedSection index={6}>
+      <div className="normal-section-wrap">
         <HomeReveal>
           <ProcessRibbonSection />
         </HomeReveal>
-      </StackedSection>
-
-      <div className="home-snap-section stacked-section" style={{ zIndex: 70, minHeight: 'auto', backgroundColor: '#000' }}>
-        <SiteFooter />
       </div>
     </>
   );

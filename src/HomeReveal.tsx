@@ -42,30 +42,9 @@ export function HomeReveal({ children }: { children: ReactNode }) {
   );
 }
 
-/** Enables full-page scroll snap on the home route only (md+). Cleans up on unmount. */
-export function useHomeScrollSnapClass(enabled: boolean) {
+/** Scroll-snap disabled — sections flow normally. This function is kept for compatibility but does nothing. */
+export function useHomeScrollSnapClass(_enabled: boolean) {
   useEffect(() => {
-    const root = document.documentElement;
-    if (!enabled) {
-      root.classList.remove('home-snap-active');
-      return;
-    }
-    const mq = window.matchMedia('(min-width: 768px)');
-    const apply = () => {
-      if (mq.matches && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        root.classList.add('home-snap-active');
-      } else {
-        root.classList.remove('home-snap-active');
-      }
-    };
-    apply();
-    mq.addEventListener('change', apply);
-    const mqReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-    mqReduce.addEventListener('change', apply);
-    return () => {
-      root.classList.remove('home-snap-active');
-      mq.removeEventListener('change', apply);
-      mqReduce.removeEventListener('change', apply);
-    };
-  }, [enabled]);
+    document.documentElement.classList.remove('home-snap-active');
+  }, []);
 }
