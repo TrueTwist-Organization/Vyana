@@ -1,13 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { BarChart4, CheckCircle2, Search, Users } from 'lucide-react';
-import {
-  motion,
-  useReducedMotion,
-  useScroll,
-  useSpring,
-  useTransform,
-} from 'framer-motion';
-import { useRef, useEffect } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform, useSpring, type MotionValue } from 'framer-motion';
+import { useRef, useEffect, useState } from 'react';
 import './process-ribbon.css';
 
 type Step = {
@@ -49,99 +43,99 @@ const STEPS: Step[] = [
   },
 ];
 
+/** One dot whose colour tracks a slice of the parent's scrollYProgress. */
+function ProgressDot({ progress, index, total }: { progress: MotionValue<number>; index: number; total: number }) {
+  const bg = useTransform(
+    progress,
+    [index / total, (index + 1) / total],
+    ['rgba(196,142,42,0.25)', 'rgba(196,142,42,1)'],
+  );
+  return <motion.div className="pr-progress-dot" style={{ backgroundColor: bg }} />;
+}
+
+function ProgressDots({ progress, total }: { progress: MotionValue<number>; total: number }) {
+  return (
+    <div className="pr-progress-dots" aria-hidden>
+      {Array.from({ length: total }, (_, i) => (
+        <ProgressDot key={i} progress={progress} index={i} total={total} />
+      ))}
+    </div>
+  );
+}
+
 export function ProcessRibbonSection() {
   const reduceMotion = useReducedMotion() ?? false;
+
+  /* Outer div: tall enough to give scroll travel for all cards */
+  const outerRef = useRef<HTMLDivElement>(null);
+  /* Inner track: measures how much we need to translate */
   const trackRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isPaused = useRef(false);
+  const [scrollXPx, setScrollXPx] = useState(0);
 
-  const { scrollYProgress } = useScroll({
-    target: trackRef,
-    offset: ['start 0.88', 'end 0.12'],
-  });
-
-  // Infinite Auto-Scroll Logic
   useEffect(() => {
-    const scrollContainer = scrollRef.current;
-    if (!scrollContainer) return;
-
-    let animationFrameId: number;
-    const scrollSpeed = 1.0; // Slightly faster for visibility
-
-    const animate = () => {
-      if (!isPaused.current) {
-        scrollContainer.scrollLeft += scrollSpeed;
-        
-        // Loop back to start when half-way through the doubled content
-        const halfWidth = scrollContainer.scrollWidth / 2;
-        if (scrollContainer.scrollLeft >= halfWidth) {
-          scrollContainer.scrollLeft = 0;
-        }
-      }
-      animationFrameId = requestAnimationFrame(animate);
+    const measure = () => {
+      if (!trackRef.current || !outerRef.current) return;
+      const trackW = trackRef.current.scrollWidth;
+      const vw = window.innerWidth;
+      setScrollXPx(Math.max(0, trackW - vw));
     };
-
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
   }, []);
 
-  const drawProgress = useSpring(scrollYProgress, {
-    stiffness: reduceMotion ? 9999 : 90,
-    damping: reduceMotion ? 9999 : 28,
-    restDelta: 0.0004,
+  /* scrollYProgress = 0 when section top hits viewport top,
+     = 1 when section bottom hits viewport bottom              */
+  const { scrollYProgress } = useScroll({
+    target: outerRef,
+    offset: ['start start', 'end end'],
   });
 
-  const pathLength = useTransform(drawProgress, [0, 1], [0, 1]);
-  void pathLength;
+  const rawX = useTransform(scrollYProgress, [0, 1], [0, -scrollXPx]);
+  const x = useSpring(rawX, { stiffness: reduceMotion ? 9999 : 120, damping: reduceMotion ? 9999 : 30, mass: 0.5 });
+
+  /* Outer height drives the scroll budget: 100vh sticky + scrollXPx of travel */
+  const outerHeight = `calc(100vh + ${scrollXPx}px)`;
 
   return (
-    <section className="pr-section" aria-labelledby="pr-heading" id="vyana-process">
-      <div className="pr-glow" aria-hidden />
-      <div className="pr-inner">
-        <motion.header
-          className="pr-header"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <p className="pr-kicker">THE EXPERIENCE</p>
-          <h2 id="pr-heading" className="pr-title">
-            YOUR JOURNEY WITH <span className="pr-gold-text">VYANA</span>
-          </h2>
-          <p className="pr-lead">
-            A deliberate four-stage process—transparent, discreet, and built for outcomes that last.
-          </p>
-        </motion.header>
+    /* Outer: provides scroll track height */
+    <div ref={outerRef} style={{ height: outerHeight, position: 'relative' }}>
+      {/* Sticky panel — stays in view while outer scrolls */}
+      <div className="pr-sticky-panel">
+        <div className="pr-glow" aria-hidden />
+        <div className="pr-inner">
+          <motion.header
+            className="pr-header"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <p className="pr-kicker">THE EXPERIENCE</p>
+            <h2 id="pr-heading" className="pr-title">
+              YOUR JOURNEY WITH <span className="pr-gold-text">VYANA</span>
+            </h2>
+            <p className="pr-lead">
+              A deliberate four-stage process—transparent, discreet, and built for outcomes that last.
+            </p>
+          </motion.header>
+        </div>
 
-        <div 
-          className="pr-horizontal-track-container" 
-          onMouseEnter={() => { isPaused.current = true; }}
-          onMouseLeave={() => { isPaused.current = false; }}
-        >
-          <svg className="pr-horizontal-spine" viewBox="0 0 1000 100" preserveAspectRatio="none">
-            <path d="M0 50 Q 250 20, 500 50 T 1000 50" fill="none" stroke="rgba(196,142,42,0.3)" strokeWidth="1" />
-          </svg>
-
-          <div className="pr-horizontal-scroll" ref={scrollRef}>
-            {/* Double the steps for a seamless infinite loop */}
-            {[...STEPS, ...STEPS].map((step, i) => {
+        {/* Horizontal strip driven by vertical scroll */}
+        <div className="pr-horiz-viewport">
+          <motion.div
+            ref={trackRef}
+            className="pr-horiz-track"
+            style={reduceMotion ? undefined : { x }}
+          >
+            {STEPS.map((step, i) => {
               const Icon = step.Icon;
-              const isVideoStep = i % 2 === 0;
-              void isVideoStep;
               return (
-                <div key={`${step.num}-${i}`} className="pr-horiz-step-group">
-                  {/* Main Journey Card FIRST */}
-                  <motion.div 
-                    className="pr-horiz-step is-video-step"
-                    initial={{ opacity: 0, x: 50 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.8, delay: (i % STEPS.length) * 0.1 + 0.1 }}
-                  >
+                <div key={step.num} className="pr-horiz-step-group">
+                  <div className={`pr-horiz-step${i % 2 === 0 ? ' pr-horiz-step--up' : ' pr-horiz-step--down'}`}>
                     <div className="pr-card-wrapper">
                       <div className="pr-card-main">
-                        <video 
+                        <video
                           className="pr-card-video"
                           src={step.videoUrl}
                           autoPlay
@@ -150,25 +144,21 @@ export function ProcessRibbonSection() {
                           playsInline
                         />
                         <div className="pr-card-overlay" />
-                        
                         <div className="pr-card-icon-box">
                           <Icon size={54} className="pr-card-icon" />
                         </div>
-                        
                         <div className="pr-card-footer">
                           <h3 className="pr-card-title">{step.title}</h3>
                           <span className="pr-card-num">{step.num}</span>
                         </div>
                       </div>
-                      
                       <div className="pr-card-description">
                         <p>{step.body}</p>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
 
-                  {/* Informational Label Card SECOND */}
-                  <div key={`${step.num}-label-${i}`} className="pr-label-card">
+                  <div className="pr-label-card">
                     <div className="pr-label-header">
                       <span className="pr-label-step">STEP {step.num}</span>
                       <div className="pr-label-dot" />
@@ -179,9 +169,12 @@ export function ProcessRibbonSection() {
                 </div>
               );
             })}
-          </div>
+          </motion.div>
         </div>
+
+        {/* Progress dots — driven by scroll position */}
+        <ProgressDots progress={scrollYProgress} total={STEPS.length} />
       </div>
-    </section>
+    </div>
   );
 }
