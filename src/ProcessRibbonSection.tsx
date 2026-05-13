@@ -92,6 +92,7 @@ export function ProcessRibbonSection() {
   });
 
   const pathLength = useTransform(drawProgress, [0, 1], [0, 1]);
+  void pathLength;
 
   return (
     <section className="pr-section" aria-labelledby="pr-heading" id="vyana-process">
@@ -127,7 +128,7 @@ export function ProcessRibbonSection() {
             {[...STEPS, ...STEPS].map((step, i) => {
               const Icon = step.Icon;
               const isVideoStep = i % 2 === 0;
-              
+              void isVideoStep;
               return (
                 <div key={`${step.num}-${i}`} className="pr-horiz-step-group">
                   {/* Main Journey Card FIRST */}

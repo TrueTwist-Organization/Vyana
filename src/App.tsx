@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
-import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import { Routes, Route, Navigate, useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { ChevronRight, MapPin, Menu, ChevronLeft, ChevronDown, Phone, Mail } from 'lucide-react';
 import { HomeReveal } from './HomeReveal';
@@ -1111,56 +1111,6 @@ const EliteCollection = () => {
         </HomeReveal>
       </div>
     </>
-  );
-};
-
-const StackedSection = ({ children, index }: { children: React.ReactNode; index: number }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"]
-  });
-
-  const scale = useSpring(useTransform(scrollYProgress, [0, 1], [1, 0.95]), {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
-
-  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0.5]);
-
-  return (
-    <motion.div
-      ref={ref}
-      className="home-snap-section stacked-section"
-      style={{
-        zIndex: index * 10,
-        backgroundColor: '#000',
-        minHeight: '100vh',
-        height: 'auto',
-        position: 'sticky',
-        top: 0,
-        marginTop: '-1px',
-        borderTop: '1px solid #000'
-      }}
-    >
-      <div style={{
-        width: '100%',
-        minHeight: window.innerWidth <= 768 ? 'auto' : '100vh',
-        paddingTop: window.innerWidth <= 768 ? '4rem' : '8rem',
-        paddingBottom: window.innerWidth <= 768 ? '1rem' : '3rem',
-        backgroundColor: '#000',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: window.innerWidth <= 768 ? 'flex-start' : 'center',
-        alignItems: 'center',
-        overflowY: 'auto',
-        overflowX: 'hidden'
-      }}>
-        {children}
-      </div>
-    </motion.div>
   );
 };
 
