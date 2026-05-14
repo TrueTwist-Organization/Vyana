@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <script>
-      // GitHub Pages SPA redirect — sends sub-path via query string
-      var seg = window.location.pathname.replace('/Vyana', '');
+      // SPA redirect for custom domain — preserves path via query string
+      var seg = window.location.pathname;
       var query = seg && seg !== '/' ? '?p=' + seg.slice(1) : '';
-      window.location.replace(window.location.origin + '/Vyana/' + query);
+      window.location.replace(window.location.origin + '/' + query);
     </script>
   </head>
   <body></body>
