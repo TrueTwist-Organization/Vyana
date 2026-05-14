@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      // GitHub Pages SPA redirect — sends sub-path via query string
+      var seg = window.location.pathname.replace('/Vyana', '');
+      var query = seg && seg !== '/' ? '?p=' + seg.slice(1) : '';
+      window.location.replace(window.location.origin + '/Vyana/' + query);
+    </script>
+  </head>
+  <body></body>
+</html>

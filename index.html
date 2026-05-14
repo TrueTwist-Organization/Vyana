@@ -2,9 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/Vyana/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>real-estate</title>
+    <title>Vyana | Exclusive Real Estate Hub</title>
+    <script>
+      // Handle GitHub Pages SPA redirect
+      (function(){
+        var p = window.location.search;
+        if(p && p.indexOf('?p=') === 0) {
+          window.history.replaceState(null, null, '/Vyana/' + p.slice(3));
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
