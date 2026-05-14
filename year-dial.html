@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vyana — Year Dial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #060402;
+      --bg-dial: #0c0906;
+      --gold: #c48e2a;
+      --gold-muted: rgba(196, 142, 42, 0.15);
+      --text: #f0e8d5;
+      --text-muted-3: rgba(240, 232, 213, 0.3);
+      --text-muted-45: rgba(240, 232, 213, 0.45);
+      --text-muted-55: rgba(240, 232, 213, 0.55);
+      --pill-text: #1a0f00;
+      --phase: #e8dfc0;
+      --spring: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #000;
+      color: var(--text);
+      font-family: 'Jost', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: clamp(1rem, 4vw, 2.5rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .year-dial-root {
+      position: relative;
+      width: 100%;
+      max-width: 980px;
+      background: var(--bg);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(196, 142, 42, 0.08);
+      box-shadow:
+        0 40px 100px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .year-dial-inner {
+      position: relative;
+      z-index: 1;
+      padding: clamp(1.75rem, 4vw, 2.75rem) clamp(1.25rem, 4vw, 2.5rem) clamp(2rem, 5vw, 3rem);
+    }
+
+    /* Header */
+    .yd-header {
+      text-align: center;
+      margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
+    }
+
+    .yd-eyebrow {
+      font-family: 'Jost', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(196, 142, 42, 0.72);
+      margin-bottom: 0.85rem;
+    }
+
+    .yd-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 42px;
+      font-weight: 700;
+      line-height: 1.05;
+      margin-bottom: 0.65rem;
+    }
+
+    .yd-title-line1 {
+      display: block;
+      color: var(--text);
+    }
+
+    .yd-title-line2 {
+      display: block;
+      background: linear-gradient(180deg, #d4a041 0%, var(--gold) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .yd-subtitle {
+      font-family: 'Jost', sans-serif;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--text-muted-45);
+      max-width: 38rem;
+      margin: 0 auto;
+    }
+
+    /* Year dial */
+    .yd-dial-wrap {
+      margin-bottom: 1.1rem;
+    }
+
+    .yd-dial {
+      position: relative;
+      display: flex;
+      background: var(--bg-dial);
+      border: 1px solid var(--gold-muted);
+      border-radius: 60px;
+      padding: 5px;
+      gap: 0;
+    }
+
+    .yd-dial-pill {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      height: calc(100% - 10px);
+      background: var(--gold);
+      border-radius: 999px;
+      transition:
+        left 0.55s var(--spring),
+        width 0.55s var(--spring);
+      z-index: 0;
+      box-shadow: 0 4px 20px rgba(196, 142, 42, 0.35);
+    }
+
+    .yd-dial-btn {
+      position: relative;
+      z-index: 1;
+      flex: 1 1 0;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      font-family: 'Jost', sans-serif;
+      font-size: clamp(11px, 2.8vw, 14px);
+      font-weight: 600;
+      padding: 0.62rem 0.35rem;
+      cursor: pointer;
+      color: var(--text-muted-45);
+      transition: color 0.25s ease;
+      border-radius: 999px;
+    }
+
+    .yd-dial-btn:hover:not(.is-active) {
+      color: rgba(240, 232, 213, 0.75);
+    }
+
+    .yd-dial-btn.is-active {
+      color: var(--pill-text);
+      font-weight: 700;
+    }
+
+    /* Progress */
+    .yd-progress-wrap {
+      margin-bottom: 0.65rem;
+    }
+
+    .yd-progress-track {
+      height: 2px;
+      border-radius: 2px;
+      background: rgba(196, 142, 42, 0.12);
+      overflow: hidden;
+      margin-bottom: 0.85rem;
+    }
+
+    .yd-progress-fill {
+      height: 100%;
+      width: 20%;
+      background: linear-gradient(90deg, rgba(196, 142, 42, 0.3) 0%, var(--gold) 100%);
+      border-radius: 2px;
+      transition: width 0.6s var(--spring);
+    }
+
+    .yd-labels {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    .yd-label-btn {
+      font-family: 'Jost', sans-serif;
+      font-size: clamp(8px, 1.8vw, 10px);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted-45);
+      padding: 0.25rem 0.15rem;
+      transition: color 0.25s ease;
+    }
+
+    .yd-label-btn:hover:not(.is-active) {
+      color: rgba(240, 232, 213, 0.7);
+    }
+
+    .yd-label-btn.is-active {
+      color: var(--gold);
+    }
+
+    /* Content grid */
+    .yd-content {
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      gap: 0 clamp(1.25rem, 3vw, 2rem);
+      align-items: start;
+      margin-top: clamp(1.5rem, 3vw, 2rem);
+      min-height: 320px;
+    }
+
+    .yd-content.is-switching .yd-col-left,
+    .yd-content.is-switching .yd-col-right {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .yd-col-left,
+    .yd-col-right {
+      transition:
+        opacity 0.22s ease,
+        transform 0.22s ease;
+    }
+
+    .yd-divider {
+      width: 1px;
+      align-self: stretch;
+      background: var(--gold-muted);
+      min-height: 200px;
+    }
+
+    .yd-chapter-meta {
+      font-family: 'Jost', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(196, 142, 42, 0.55);
+      margin-bottom: 0.65rem;
+    }
+
+    .yd-phase-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.12;
+      color: var(--phase);
+      margin-bottom: 1.25rem;
+    }
+
+    .yd-phase-title.is-elite {
+      color: var(--gold);
+    }
+
+    .yd-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 1.25rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .yd-stat-num {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--gold);
+    }
+
+    .yd-stat-label {
+      font-family: 'Jost', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted-3);
+      margin-top: 0.35rem;
+    }
+
+    .yd-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+
+    .yd-tag {
+      font-family: 'Jost', sans-serif;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.65rem;
+      border: 1px solid var(--gold-muted);
+      border-radius: 999px;
+      color: rgba(196, 142, 42, 0.78);
+    }
+
+    /* Right column */
+    .yd-ghost-year {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(3.5rem, 14vw, 88px);
+      font-weight: 700;
+      line-height: 0.85;
+      color: rgba(196, 142, 42, 0.07);
+      user-select: none;
+      pointer-events: none;
+      margin-bottom: 0.35rem;
+    }
+
+    .yd-quote {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 17px;
+      font-style: italic;
+      font-weight: 400;
+      line-height: 1.55;
+      color: var(--text-muted-55);
+      border-left: 2px solid var(--gold);
+      padding-left: 1rem;
+      margin-bottom: 1.15rem;
+    }
+
+    .yd-details {
+      list-style: none;
+    }
+
+    .yd-details li {
+      position: relative;
+      font-family: 'Jost', sans-serif;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-muted-45);
+      padding-left: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .yd-details li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.55em;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--gold);
+      opacity: 0.85;
+    }
+
+    @media (max-width: 720px) {
+      .yd-title {
+        font-size: clamp(28px, 9vw, 42px);
+      }
+
+      .yd-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem 0;
+      }
+
+      .yd-divider {
+        display: none;
+      }
+
+      .yd-phase-title {
+        font-size: clamp(26px, 8vw, 36px);
+      }
+
+      .yd-stat-num {
+        font-size: clamp(28px, 10vw, 38px);
+      }
+
+      .yd-labels {
+        justify-content: center;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="year-dial-root" id="yearDialRoot">
+    <div class="year-dial-inner">
+      <header class="yd-header">
+        <p class="yd-eyebrow">Vyana Real Estate · Est. 2015</p>
+        <h1 class="yd-title">
+          <span class="yd-title-line1">A Decade of</span>
+          <span class="yd-title-line2">Trusted Excellence</span>
+        </h1>
+        <p class="yd-subtitle">
+          From first listings to city-wide mandates — how Vyana grew without outgrowing personal service.
+        </p>
+      </header>
+
+      <div class="yd-dial-wrap">
+        <div class="yd-dial" id="yearDial" role="tablist" aria-label="Timeline by year">
+          <span class="yd-dial-pill" id="dialPill" aria-hidden="true"></span>
+          <button type="button" class="yd-dial-btn is-active" role="tab" data-index="0" aria-selected="true">2015</button>
+          <button type="button" class="yd-dial-btn" role="tab" data-index="1" aria-selected="false">2017</button>
+          <button type="button" class="yd-dial-btn" role="tab" data-index="2" aria-selected="false">2019</button>
+          <button type="button" class="yd-dial-btn" role="tab" data-index="3" aria-selected="false">2021</button>
+          <button type="button" class="yd-dial-btn" role="tab" data-index="4" aria-selected="false">2024</button>
+        </div>
+      </div>
+
+      <div class="yd-progress-wrap">
+        <div class="yd-progress-track">
+          <div class="yd-progress-fill" id="progressFill"></div>
+        </div>
+        <div class="yd-labels" role="tablist" aria-label="Timeline chapters">
+          <button type="button" class="yd-label-btn is-active" data-index="0">Foundation</button>
+          <button type="button" class="yd-label-btn" data-index="1">Trust</button>
+          <button type="button" class="yd-label-btn" data-index="2">Expansion</button>
+          <button type="button" class="yd-label-btn" data-index="3">Digital</button>
+          <button type="button" class="yd-label-btn" data-index="4">Elite</button>
+        </div>
+      </div>
+
+      <div class="yd-content" id="ydContent" aria-live="polite">
+        <div class="yd-col-left" id="colLeft"></div>
+        <div class="yd-divider" aria-hidden="true"></div>
+        <div class="yd-col-right" id="colRight"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var chapters = [
+        {
+          year: 2015,
+          shortLabel: 'Foundation',
+          phaseTitle: 'Foundation Year',
+          eliteTitle: false,
+          stats: [
+            { num: '2015', label: 'Est. Year' },
+            { num: '3', label: 'Core Team' },
+          ],
+          tags: ['Residential', 'Ahmedabad', 'Advisory'],
+          quote:
+            'Vyana began as a focused residential advisory — built on transparent conversations and long-term relationships over quick commissions.',
+          details: [
+            'Focused exclusively on Ahmedabad residential market',
+            'Careful shortlisting over volume-driven sales',
+            'Transparent pricing as core brand promise',
+          ],
+        },
+        {
+          year: 2017,
+          shortLabel: 'Trust',
+          phaseTitle: 'Building Trust',
+          eliteTitle: false,
+          stats: [
+            { num: '500+', label: 'Clients' },
+            { num: '98%', label: 'Referrals' },
+          ],
+          tags: ['Repeat Clients', 'Neighbourhoods', 'Benchmarks'],
+          quote:
+            'Deepened inventory knowledge across builders and neighbourhoods — earning repeat clients through honest pricing and consistent follow-through.',
+          details: [
+            'Expanded builder relationships across 8+ micro-markets',
+            'Repeat client rate exceeded industry average by 3x',
+            'Introduced honest pricing benchmark reports',
+          ],
+        },
+        {
+          year: 2019,
+          shortLabel: 'Expansion',
+          phaseTitle: 'Expansion Phase',
+          eliteTitle: false,
+          stats: [
+            { num: '3×', label: 'Business Growth' },
+            { num: '₹200Cr+', label: 'Transactions' },
+          ],
+          tags: ['Commercial', 'Investment', 'Mandates'],
+          quote:
+            'Commercial mandates and investment-led transactions joined core residential work — same documentation discipline, bigger scope.',
+          details: [
+            'Launched commercial advisory vertical',
+            'First investment-grade property mandate closed',
+            'Documentation-first approach adopted companywide',
+          ],
+        },
+        {
+          year: 2021,
+          shortLabel: 'Digital',
+          phaseTitle: 'Digital Growth',
+          eliteTitle: false,
+          stats: [
+            { num: '12', label: 'Cities' },
+            { num: '10K+', label: 'Leads/Year' },
+          ],
+          tags: ['Digital Listings', 'Marketing', 'Lead Workflows'],
+          quote:
+            'Digital listings and structured marketing augmented on-ground visits — busy clients could move faster without losing clarity.',
+          details: [
+            'Launched structured digital listing portal',
+            'CRM-based lead management introduced',
+            'Virtual site tours enabled remote buyers',
+          ],
+        },
+        {
+          year: 2024,
+          shortLabel: 'Elite',
+          phaseTitle: 'Elite Portfolio',
+          eliteTitle: true,
+          stats: [
+            { num: '1200+', label: 'Properties Closed' },
+            { num: '9', label: 'Years Strong' },
+          ],
+          tags: ['Luxury', 'Premium Mandates', 'Investment'],
+          quote:
+            "Premium investment properties and luxury residential mandates — Vyana's most curated collection yet, for clients who expect the exceptional.",
+          details: [
+            'Launched The Elite Collection — curated luxury inventory',
+            'Average transaction value up 4x since founding',
+            'City-wide mandates across residential and commercial',
+          ],
+        },
+      ];
+
+      var progressPercents = [20, 40, 60, 80, 100];
+      var activeIndex = 0;
+
+      var dial = document.getElementById('yearDial');
+      var pill = document.getElementById('dialPill');
+      var progressFill = document.getElementById('progressFill');
+      var ydContent = document.getElementById('ydContent');
+      var colLeft = document.getElementById('colLeft');
+      var colRight = document.getElementById('colRight');
+      var dialBtns = dial.querySelectorAll('.yd-dial-btn');
+      var labelBtns = document.querySelectorAll('.yd-label-btn');
+
+      function positionPill() {
+        var activeBtn = dialBtns[activeIndex];
+        if (!activeBtn || !pill) return;
+        var trackRect = dial.getBoundingClientRect();
+        var btnRect = activeBtn.getBoundingClientRect();
+        var left = btnRect.left - trackRect.left;
+        var width = btnRect.width;
+        pill.style.left = left + 'px';
+        pill.style.width = width + 'px';
+      }
+
+      function renderChapter() {
+        var ch = chapters[activeIndex];
+        var n = activeIndex + 1;
+
+        var titleClass = 'yd-phase-title' + (ch.eliteTitle ? ' is-elite' : '');
+        colLeft.innerHTML =
+          '<p class="yd-chapter-meta">Chapter ' +
+          String(n).padStart(2, '0') +
+          ' of 05</p>' +
+          '<h2 class="' +
+          titleClass +
+          '">' +
+          escapeHtml(ch.phaseTitle) +
+          '</h2>' +
+          '<div class="yd-stats">' +
+          '<div><div class="yd-stat-num">' +
+          escapeHtml(ch.stats[0].num) +
+          '</div><div class="yd-stat-label">' +
+          escapeHtml(ch.stats[0].label) +
+          '</div></div>' +
+          '<div><div class="yd-stat-num">' +
+          escapeHtml(ch.stats[1].num) +
+          '</div><div class="yd-stat-label">' +
+          escapeHtml(ch.stats[1].label) +
+          '</div></div></div>' +
+          '<div class="yd-tags">' +
+          ch.tags
+            .map(function (t) {
+              return '<span class="yd-tag">' + escapeHtml(t) + '</span>';
+            })
+            .join('') +
+          '</div>';
+
+        colRight.innerHTML =
+          '<div class="yd-ghost-year">' +
+          ch.year +
+          '</div>' +
+          '<blockquote class="yd-quote">' +
+          escapeHtml(ch.quote) +
+          '</blockquote>' +
+          '<ul class="yd-details">' +
+          ch.details
+            .map(function (d) {
+              return '<li>' + escapeHtml(d) + '</li>';
+            })
+            .join('') +
+          '</ul>';
+      }
+
+      function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      function updateActiveClasses() {
+        dialBtns.forEach(function (btn, i) {
+          var on = i === activeIndex;
+          btn.classList.toggle('is-active', on);
+          btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        labelBtns.forEach(function (btn, i) {
+          btn.classList.toggle('is-active', i === activeIndex);
+        });
+        progressFill.style.width = progressPercents[activeIndex] + '%';
+      }
+
+      function setIndex(i) {
+        if (i === activeIndex || i < 0 || i >= chapters.length) return;
+        ydContent.classList.add('is-switching');
+        window.setTimeout(function () {
+          activeIndex = i;
+          updateActiveClasses();
+          positionPill();
+          renderChapter();
+          window.requestAnimationFrame(function () {
+            ydContent.classList.remove('is-switching');
+          });
+        }, 220);
+      }
+
+      dialBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setIndex(parseInt(btn.getAttribute('data-index'), 10));
+        });
+      });
+
+      labelBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setIndex(parseInt(btn.getAttribute('data-index'), 10));
+        });
+      });
+
+      window.addEventListener('resize', function () {
+        positionPill();
+      });
+
+      updateActiveClasses();
+      renderChapter();
+      window.requestAnimationFrame(function () {
+        positionPill();
+      });
+    })();
+  </script>
+</body>
+</html>
