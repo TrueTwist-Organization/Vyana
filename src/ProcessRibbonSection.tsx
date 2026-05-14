@@ -66,113 +66,175 @@ function ProgressDots({ progress, total }: { progress: MotionValue<number>; tota
 export function ProcessRibbonSection() {
   const reduceMotion = useReducedMotion() ?? false;
 
-  /* Outer div: tall enough to give scroll travel for all cards */
   const outerRef = useRef<HTMLDivElement>(null);
-  /* Inner track: measures how much we need to translate */
   const trackRef = useRef<HTMLDivElement>(null);
   const [scrollXPx, setScrollXPx] = useState(0);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false,
+  );
 
   useEffect(() => {
     const measure = () => {
-      if (!trackRef.current || !outerRef.current) return;
-      const trackW = trackRef.current.scrollWidth;
-      const vw = window.innerWidth;
-      setScrollXPx(Math.max(0, trackW - vw));
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!trackRef.current || mobile) return;
+      setScrollXPx(Math.max(0, trackRef.current.scrollWidth - window.innerWidth));
     };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  /* scrollYProgress = 0 when section top hits viewport top,
-     = 1 when section bottom hits viewport bottom              */
   const { scrollYProgress } = useScroll({
     target: outerRef,
     offset: ['start start', 'end end'],
   });
 
   const rawX = useTransform(scrollYProgress, [0, 1], [0, -scrollXPx]);
-  const x = useSpring(rawX, { stiffness: reduceMotion ? 9999 : 120, damping: reduceMotion ? 9999 : 30, mass: 0.5 });
+  const x = useSpring(rawX, {
+    stiffness: reduceMotion ? 9999 : 120,
+    damping: reduceMotion ? 9999 : 30,
+    mass: 0.5,
+  });
 
-  /* Outer height drives the scroll budget: 100vh sticky + scrollXPx of travel */
-  const outerHeight = `calc(100vh + ${scrollXPx}px)`;
+  /* On mobile: natural height (no scroll budget needed).
+     On desktop: 100vh sticky + card strip travel.          */
+  const outerStyle = isMobile
+    ? { position: 'relative' as const }
+    : { height: `calc(100vh + ${scrollXPx}px)`, position: 'relative' as const };
 
+  const StepCards = () => (
+    <>
+      {STEPS.map((step, i) => {
+        const Icon = step.Icon;
+        return (
+          <div key={step.num} className="pr-horiz-step-group">
+            <div className={`pr-horiz-step${i % 2 === 0 ? ' pr-horiz-step--up' : ' pr-horiz-step--down'}`}>
+              <div className="pr-card-wrapper">
+                <div className="pr-card-main">
+                  <video
+                    className="pr-card-video"
+                    src={step.videoUrl}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                  />
+                  <div className="pr-card-overlay" />
+                  <div className="pr-card-icon-box">
+                    <Icon size={54} className="pr-card-icon" />
+                  </div>
+                  <div className="pr-card-footer">
+                    <h3 className="pr-card-title">{step.title}</h3>
+                    <span className="pr-card-num">{step.num}</span>
+                  </div>
+                </div>
+                <div className="pr-card-description">
+                  <p>{step.body}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pr-label-card">
+              <div className="pr-label-header">
+                <span className="pr-label-step">STEP {step.num}</span>
+                <div className="pr-label-dot" />
+              </div>
+              <h3 className="pr-label-title">{step.title}</h3>
+              <p className="pr-label-body">{step.body}</p>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+
+  const Header = () => (
+    <div className="pr-inner">
+      <motion.header
+        className="pr-header"
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <p className="pr-kicker">THE EXPERIENCE</p>
+        <h2 id="pr-heading" className="pr-title">
+          YOUR JOURNEY WITH <span className="pr-gold-text">VYANA</span>
+        </h2>
+        <p className="pr-lead">
+          A deliberate four-stage process—transparent, discreet, and built for outcomes that last.
+        </p>
+      </motion.header>
+    </div>
+  );
+
+  /* ── Mobile: plain vertical layout, no sticky, no scroll-jacking ── */
+  if (isMobile) {
+    return (
+      <section className="pr-section-mobile" aria-labelledby="pr-heading" id="vyana-process">
+        <div className="pr-glow" aria-hidden />
+        <Header />
+        <div className="pr-mobile-grid">
+          {STEPS.map((step, i) => {
+            const Icon = step.Icon;
+            return (
+              <motion.div
+                key={step.num}
+                className="pr-mobile-card"
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.7, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="pr-card-main">
+                  <video
+                    className="pr-card-video"
+                    src={step.videoUrl}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                  />
+                  <div className="pr-card-overlay" />
+                  <div className="pr-card-icon-box">
+                    <Icon size={40} className="pr-card-icon" />
+                  </div>
+                  <div className="pr-card-footer">
+                    <h3 className="pr-card-title">{step.title}</h3>
+                    <span className="pr-card-num">{step.num}</span>
+                  </div>
+                </div>
+                <div className="pr-mobile-card-info">
+                  <span className="pr-label-step">STEP {step.num}</span>
+                  <h3 className="pr-label-title">{step.title}</h3>
+                  <p className="pr-label-body">{step.body}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  /* ── Desktop: sticky + scroll-driven horizontal ── */
   return (
-    /* Outer: provides scroll track height */
-    <div ref={outerRef} style={{ height: outerHeight, position: 'relative' }}>
-      {/* Sticky panel — stays in view while outer scrolls */}
+    <div ref={outerRef} style={outerStyle}>
       <div className="pr-sticky-panel">
         <div className="pr-glow" aria-hidden />
-        <div className="pr-inner">
-          <motion.header
-            className="pr-header"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <p className="pr-kicker">THE EXPERIENCE</p>
-            <h2 id="pr-heading" className="pr-title">
-              YOUR JOURNEY WITH <span className="pr-gold-text">VYANA</span>
-            </h2>
-            <p className="pr-lead">
-              A deliberate four-stage process—transparent, discreet, and built for outcomes that last.
-            </p>
-          </motion.header>
-        </div>
+        <Header />
 
-        {/* Horizontal strip driven by vertical scroll */}
         <div className="pr-horiz-viewport">
           <motion.div
             ref={trackRef}
             className="pr-horiz-track"
             style={reduceMotion ? undefined : { x }}
           >
-            {STEPS.map((step, i) => {
-              const Icon = step.Icon;
-              return (
-                <div key={step.num} className="pr-horiz-step-group">
-                  <div className={`pr-horiz-step${i % 2 === 0 ? ' pr-horiz-step--up' : ' pr-horiz-step--down'}`}>
-                    <div className="pr-card-wrapper">
-                      <div className="pr-card-main">
-                        <video
-                          className="pr-card-video"
-                          src={step.videoUrl}
-                          autoPlay
-                          muted
-                          loop
-                          playsInline
-                        />
-                        <div className="pr-card-overlay" />
-                        <div className="pr-card-icon-box">
-                          <Icon size={54} className="pr-card-icon" />
-                        </div>
-                        <div className="pr-card-footer">
-                          <h3 className="pr-card-title">{step.title}</h3>
-                          <span className="pr-card-num">{step.num}</span>
-                        </div>
-                      </div>
-                      <div className="pr-card-description">
-                        <p>{step.body}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pr-label-card">
-                    <div className="pr-label-header">
-                      <span className="pr-label-step">STEP {step.num}</span>
-                      <div className="pr-label-dot" />
-                    </div>
-                    <h3 className="pr-label-title">{step.title}</h3>
-                    <p className="pr-label-body">{step.body}</p>
-                  </div>
-                </div>
-              );
-            })}
+            <StepCards />
           </motion.div>
         </div>
 
-        {/* Progress dots — driven by scroll position */}
         <ProgressDots progress={scrollYProgress} total={STEPS.length} />
       </div>
     </div>
