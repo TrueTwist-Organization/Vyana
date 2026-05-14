@@ -23,9 +23,14 @@
   box-sizing: border-box;
 }
 
-html {
+html,
+body {
   background-color: var(--bg-primary);
   scroll-behavior: smooth;
+  /* clip prevents horizontal page scroll without creating a new scroll container
+     (overflow: hidden would break position: sticky) */
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 #elite-collection,
@@ -54,6 +59,8 @@ html.home-snap-active {
 /* Normal section wrapper for homepage sections */
 .normal-section-wrap {
   width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
   background-color: #000;
   position: relative;
 }
